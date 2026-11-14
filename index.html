@@ -329,7 +329,7 @@ function tt(){
   if(ws){wantWs=false;try{ws.close()}catch(e){}}
   tf();return true;
 }
-let wsAnnounced=false;const noted=new Set();function note(t){t=t.slice(0,90);if(noted.has(t))return;noted.add(t);feed(t,'#ffd54f')}
+let wsAnnounced=false;const noted=new Set();function note(t){t=t.replace(/\d+s\./,'').slice(0,90);if(noted.has(t))return;noted.add(t);feed(t,'#ffd54f')}
 function tf(){
   wantWs=true;
   try{ws=new WebSocket(wsUrl)}catch(e){st.textContent=wsName+': conexiune refuzată';return}
@@ -370,7 +370,7 @@ document.getElementById('ytList').value=LS.get('br_yt');
 const DEF_LIST='PLat5tuTlQgDZodvgB_PLBTBnMDuKj6TWx';
 function listId(){const v=LS.get('br_yt');if(!v)return DEF_LIST;const m=v.match(/list=([\w-]+)/);return m?m[1]:v}
 let yt=null,ytReady=false,musicOn=false;
-window.onYouTubeIframeAPIReady=()=>{yt=new YT.Player('yt',{width:200,height:113,playerVars:{listType:'playlist',list:listId(),playsinline:1,controls:0,loop:1,rel:0},events:{onReady:()=>{ytReady=true;try{yt.setShuffle(true);yt.setLoop(true);yt.setVolume(100)}catch(e){}},onError:()=>{try{yt.nextVideo()}catch(e){}}}})};
+window.onYouTubeIframeAPIReady=()=>{yt=new YT.Player('yt',{width:200,height:113,playerVars:{listType:'playlist',list:listId(),playsinline:1,controls:0,loop:1,rel:0},events:{onReady:()=>{ytReady=true;try{yt.setShuffle(true);yt.setLoop(true);yt.setVolume(100);if(LIVE||document.body.classList.contains('live')){yt.playVideo();musicOn=true}}catch(e){}},onStateChange:e=>{if(musicOn&&(e.data===0||e.data===2)&&(LIVE||document.body.classList.contains('live'))){try{e.data===0?yt.nextVideo():yt.playVideo()}catch(_){}}},onError:()=>{try{yt.nextVideo()}catch(e){}}}})};
 {const sc=document.createElement('script');sc.src='https://www.youtube.com/iframe_api';document.head.appendChild(sc)}
 function music(on){musicOn=on;if(!ytReady)return;try{on?yt.playVideo():yt.pauseVideo()}catch(e){}}
 let wake=null;
