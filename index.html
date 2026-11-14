@@ -99,7 +99,7 @@ REG.forEach(g=>{g.rgb=hexRgb(g.col);g.top=g.col;g.side=`rgb(${g.rgb.map(v=>v*.55
 
 /* ---------- Map: simplified outline of Romania (lon,lat) ---------- */
 const OUT=[[22.9,47.97],[23.9,47.98],[24.9,47.73],[25.6,47.93],[26.6,48.25],[27.2,47.8],[27.8,47.3],[28.1,46.95],[28.2,46.3],[28.1,45.6],[28.2,45.45],[28.7,45.25],[29.7,45.35],[29.65,44.85],[28.95,44.5],[28.6,43.74],[27.9,43.98],[27.0,44.1],[26.1,43.7],[25.0,43.68],[24.0,43.72],[23.3,43.85],[22.9,43.95],[22.6,44.2],[22.4,44.6],[22.0,44.5],[21.4,44.8],[21.4,45.2],[20.8,45.5],[20.3,46.1],[21.0,46.3],[21.5,46.7],[21.9,47.4],[22.3,47.75]];
-const K=0.695,MX=LAND?30:40,MW=LAND?1160:1000,S=MW/((29.75-20.25)*K),MY=LAND?215:540,MH=4.7*S,MC=MX+MW/2;
+const K=0.695,MX=LAND?30:130,MW=LAND?1160:820,S=MW/((29.75-20.25)*K),MY=LAND?215:580,MH=4.7*S,MC=MX+MW/2;
 const px=lon=>MX+(lon-20.25)*K*S, py=lat=>MY+(48.35-lat)*S;
 function pip(x,y,P){let ins=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const[xi,yi]=P[i],[xj,yj]=P[j];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))ins=!ins}return ins}
 REG.forEach(g=>g.sp=g.seeds.map(([lo,la])=>[px(lo),py(la)]));
@@ -199,7 +199,7 @@ function onGift(id,nick,coins,gname){
     shakeT=performance.now()+700;banners.length=0;banner(`☄️ METEORIT PE ${REG[L].name.toUpperCase()}!`,`${u.nick} a lovit liderul → +${k} pentru ${g.name}`,g.col,true);feed(`☄️ ${u.nick}: meteorit pe ${REG[L].name}`,g.col)}
   else if(coins>=30){REG[T].sh=performance.now()+30000;banner(`🛡️ SCUT PENTRU ${g.name.toUpperCase()}!`,`${u.nick} — nimeni nu o poate ataca 30s`,g.col,true)}
   else if(coins>=5)banner(`🎁 ${u.nick.toUpperCase()}`,`+${n} teritoriu pentru ${g.name}`,g.col);
-  else if(Math.random()<.5)banner(`🌹 ${u.nick}`,`+${n} pentru ${g.name}`,g.col);
+
 }
 function onLike(id,nick,n){
   const u=U(id,nick);if(u.team==null)join(u,weakest(),true);
@@ -208,9 +208,9 @@ function onLike(id,nick,n){
   likeTot+=n;likeSince[u.team]+=n;if(likeTot>=likeGoal)likeBomb();
 }
 function onSocial(id,nick,kind){
-  const u=U(id,nick);if(u.team==null)join(u,weakest(),true);const n=kind==='follow'?20:10;
-  queue(u.team,n);addPts(u,n);feed(`${kind==='follow'?'⭐':'📣'} ${u.nick} → +${n} ${REG[u.team].name}`,REG[u.team].col);
-  banner(kind==='follow'?'⭐ FOLLOW NOU!':'📣 SHARE!',`${u.nick} → +${n} pentru ${REG[u.team].name}`,REG[u.team].col);pop(u,'+'+n+(kind==='follow'?' ⭐':' 📣'));sfx('big');
+  const u=U(id,nick);if(u.team==null)join(u,weakest(),true);const n=0;
+  
+  banner(kind==='follow'?'⭐ FOLLOW NOU!':'📣 SHARE!',`mulțumim, ${u.nick}!`,REG[u.team].col);pop(u,kind==='follow'?'⭐':'📣');sfx('big');
 }
 
 /* ---------- Round flow ---------- */
@@ -274,7 +274,7 @@ function drawGiftMenu(){
   else{const t='🌹 1🪙 = +10  ·  🛡️ 30🪙 = SCUT  ·  ☄️ 99🪙 = METEORIT PE LIDER';fit(t,w-24,26,900);txt(t,x+w/2,y+h/2+1,'#fff','rgba(0,0,0,.7)',4)}
 }
 function drawLikeGoal(now){
-  const x=LAND?24:30,w=LAND?470:1020,y=LAND?22:H-30-130-66,h=52,p=Math.min(1,(likeTot-likeBase)/(likeGoal-likeBase)),fl=now-likeBoomT<1500;
+  const x=LAND?24:30,w=LAND?470:1020,y=LAND?22:190,h=LAND?52:46,p=Math.min(1,(likeTot-likeBase)/(likeGoal-likeBase)),fl=now-likeBoomT<1500;
   rrect(x,y,w,h,16);ctx.fillStyle='rgba(0,0,0,.55)';ctx.fill();
   ctx.save();rrect(x,y,w,h,16);ctx.clip();const g=ctx.createLinearGradient(x,0,x+w,0);g.addColorStop(0,'#ff2d6f');g.addColorStop(1,'#ff9ec0');ctx.fillStyle=g;ctx.globalAlpha=fl?1:.85;ctx.fillRect(x,y,w*p,h);ctx.restore();
   ctx.lineWidth=3;ctx.strokeStyle='#ff4f8b';rrect(x,y,w,h,16);ctx.stroke();
@@ -286,7 +286,7 @@ let ev=null,nextEv=performance.now()+35000,lastEvK='',nextHint=performance.now()
 const WORDS=['sarmale','mici','hora','cozonac','dacia','carpati','mamaliga','ciorba','branza','dunarea','palinca','romania'];
 function startEvent(now){
   const ord=[...Array(N).keys()].sort((a,b)=>count[b]-count[a]),lead=ord[0],alive=ord.filter(i=>count[i]>0),last=alive[alive.length-1];
-  const ks=['blitz','save','capital','likes','word','word'].filter(k=>k!==lastEvK),k=ks[Math.random()*ks.length|0];lastEvK=k;
+  const ks=['blitz','save','capital','word','word'].filter(k=>k!==lastEvK),k=ks[Math.random()*ks.length|0];lastEvK=k;
   let t=-1,title,sub,col='#ffd54f',dur=20000,w='';
   if(k==='blitz'){t=ord[1+(Math.random()*4|0)];title=`⚡ BĂTĂLIE FULGER: ${REG[t].name.toUpperCase()} x2`;sub=`tot ce face ${REG[t].name} contează dublu!`;col=REG[t].col}
   else if(k==='save'){t=last;title=`🆘 SALVAȚI ${REG[t].name.toUpperCase()}! x3`;sub=`scrie ${REG[t].alias[0]} — totul contează triplu`;col=REG[t].col}
@@ -299,21 +299,21 @@ function tickEvents(now){
   if(!ev&&now>=nextEv&&roundEnd-now>15000)startEvent(now);
   if(ev&&now>=ev.until){if(ev.k==='word'&&!ev.won)feed('🧠 Nimeni n-a fost destul de rapid 😅','#ffd54f');ev=null;nextEv=now+30000+Math.random()*10000}
   const left=roundEnd-now;
-  if(!saidMin&&left<60000&&left>45000){saidMin=true;banner('ULTIMUL MINUT!','dați tot — like-uri și mesaje!','#ff5252',true);sfx('event')}
+  if(!saidMin&&left<60000&&left>45000){saidMin=true;banner('ULTIMUL MINUT!','cine câștigă runda?','#ff5252',true);sfx('event')}
   let lead=0;for(let i=1;i<N;i++)if(count[i]>count[lead])lead=i;
   if(lead!==lastLeader){const prev=lastLeader;lastLeader=lead;if(prev>=0&&ROUND*1000-left>15000&&now-leadT>8000){leadT=now;banner(`${REG[lead].name.toUpperCase()} TRECE PE LOCUL 1!`,`a depășit-o pe ${REG[prev].name}`,REG[lead].col);sfx('hit')}}
-  if(now<nextHint||banners.length||ev)return;nextHint=now+20000;
+  if(now<nextHint||banners.length||ev)return;nextHint=now+30000;
   const tot=cells.length,mem=members.reduce((a,b)=>a+b,0),weak=[...Array(N).keys()].filter(i=>count[i]>0&&count[i]/tot<.04),o=[];
-  if(mem<4)o.push(['SCRIE REGIUNEA TA ÎN CHAT!','moldova · ardeal · oltenia · banat · dobrogea…','#ffd54f']);
-  if(weak.length){const i=weak[Math.random()*weak.length|0];o.push([`${REG[i].name.toUpperCase()} DISPARE!`,`scrie ${REG[i].alias[0]} ca s-o salvezi!`,REG[i].col])}
-  o.push([`${REG[lead].name.toUpperCase()} CONDUCE!`,`cine o oprește? scrie: atac ${REG[lead].alias[0]}`,REG[lead].col]);
-  o.push(['❤️ LIKE = TERITORIU','fiecare 5 like-uri cuceresc un hexagon','#ff4f8b']);
-  o.push(['⭐ FOLLOW = +20','share = +10 · orice mesaj = +1','#ffd54f']);
+
+  if(weak.length){const i=weak[Math.random()*weak.length|0];o.push([`${REG[i].name.toUpperCase()} DISPARE!`,`mai are doar ${Math.round(count[i]/tot*100)}% din hartă`,REG[i].col])}
+  o.push([`${REG[lead].name.toUpperCase()} CONDUCE!`,`${Math.round(count[lead]/tot*100)}% din hartă`,REG[lead].col]);
+
+
   const c=o[Math.random()*o.length|0];banner(c[0],c[1],c[2]);
 }
 function drawEvent(now){
-  const x=LAND?24:30,w=LAND?470:1020,h=LAND?150:130,y=LAND?86:H-h-30;
-  if(!ev){const s=Math.ceil((nextEv-now)/1000);if(phase!=='play'||s>15||s<0)return;
+  const x=LAND?24:30,w=LAND?470:1020,h=LAND?150:128,y=LAND?86:246;
+  if(!ev){const s=Math.ceil((nextEv-now)/1000);if(!LAND||phase!=='play'||s>15||s<0)return;
     rrect(x,y,w,56,16);ctx.fillStyle='rgba(0,0,0,.5)';ctx.fill();ctx.textAlign='center';ctx.textBaseline='middle';font(26,800);txt(`⏳ Eveniment surpriză în ${s}s`,x+w/2,y+29,'#ffe082');return}
   const p=Math.max(0,(ev.until-now)/ev.dur),pulse=.5+.5*Math.sin(now/180);
   rrect(x,y,w,h,18);ctx.fillStyle='rgba(5,8,20,.85)';ctx.fill();ctx.lineWidth=4+3*pulse;ctx.strokeStyle=ev.col;ctx.stroke();
@@ -344,9 +344,9 @@ const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 function drawHeader(now){
   ctx.textAlign='center';ctx.textBaseline='middle';
   const g=ctx.createLinearGradient(0,40,0,130);g.addColorStop(0,'#fff3c4');g.addColorStop(.5,'#ffca28');g.addColorStop(1,'#ff8f00');
-  const sz=fit('BĂTĂLIA REGIUNILOR',1000,LAND?84:92,900);font(sz,900);
-  txt('BĂTĂLIA REGIUNILOR',W/2,LAND?66:88,g,'#3e1d00',14);
-  const HY=LAND?-30:0;
+  const sz=fit('BĂTĂLIA REGIUNILOR',1000,LAND?84:76,900);font(sz,900);
+  txt('BĂTĂLIA REGIUNILOR',W/2,LAND?66:66,g,'#3e1d00',14);
+  const HY=-30;
   const cols=['#002B7F','#FCD116','#CE1126'];cols.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(W/2-150+i*100,140+HY,100,10)});
   const left=phase==='play'?Math.max(0,(roundEnd-now)/1000):0;
   const pill=`RUNDA ${round}  ·  ${phase==='play'?fmt(left):'FINAL'}`;
@@ -355,9 +355,9 @@ function drawHeader(now){
   txt(pill,W/2,190+HY,'#fff');
 }
 function drawHelp(){
-  const HY0=LAND?215:228;rrect(PX,HY0,PW,128,18);ctx.fillStyle='rgba(0,0,0,.42)';ctx.fill();
+  if(!LAND&&ev)return;const HY0=LAND?215:246;rrect(PX,HY0,PW,128,18);ctx.fillStyle='rgba(0,0,0,.42)';ctx.fill();
   ctx.textAlign='left';let hs=28;font(hs,700);
-  const L=[['✍️','scrie ','regiunea ta',LAND?' (ex: ardeal) = intri în echipă':' (ex: ardeal) ca să intri în echipă'],['⚔️','scrie ','atac + regiune',' ca să alegi pe cine cucerești'],['❤️','','like-uri + mesaje',' = teritoriu pentru echipa ta']];
+  const L=[['✍️','scrie ','regiunea ta',' · ⚔️ atac + regiune'],['❤️','','like-uri + mesaje',' = teritoriu pentru echipa ta']];
   const mw=Math.max(...L.map(l=>ctx.measureText(l[1]+l[2]+l[3]).width))+46;if(mw>PW-40){hs=Math.floor(28*(PW-40)/mw);font(hs,700)}
   L.forEach((l,i)=>{let x=PX+22;const y=HY0+34+i*38;ctx.fillStyle='#fff';ctx.fillText(l[0],x,y);x+=hs*1.65;
     ctx.fillStyle='#cfd8ff';ctx.fillText(l[1],x,y);x+=ctx.measureText(l[1]).width;
@@ -366,7 +366,7 @@ function drawHelp(){
 }
 function drawBoard(){
   const tot=cells.length,ord=[...Array(N).keys()].sort((a,b)=>count[b]-count[a]||wins[b]-wins[a]);
-  const NC=LAND?2:3,GX=15,TW=(PW-GX*(NC-1))/NC,TH=52,GY=8,X0=PX,Y0=LAND?358:368;
+  const NC=LAND?2:3,GX=15,TW=(PW-GX*(NC-1))/NC,TH=52,GY=8,X0=PX,Y0=LAND?358:384;
   ord.forEach((i,k)=>{
     const g=REG[i],x=X0+(k%NC)*(TW+GX),y=Y0+Math.floor(k/NC)*(TH+GY),pct=count[i]/tot;
     rrect(x,y,TW,TH,12);ctx.fillStyle='rgba(0,0,0,.5)';ctx.fill();
@@ -391,8 +391,8 @@ function drawMap(now){
 }
 function drawBottom(){
   const y0=LAND?682:MY+MH+30;drawPodium(y0);
-  ctx.textAlign='left';ctx.textBaseline='middle';const FN=LAND?4:5;
-  feedL.slice(-FN).forEach((f,i)=>{const y=y0+(LAND?172:165)+i*42;ctx.fillStyle=f.col;ctx.beginPath();ctx.arc(PX+22,y,8,0,7);ctx.fill();
+  ctx.textAlign='left';ctx.textBaseline='middle';const FN=LAND?4:0;
+  (FN?feedL.slice(-FN):[]).forEach((f,i)=>{const y=y0+(LAND?172:165)+i*42;ctx.fillStyle=f.col;ctx.beginPath();ctx.arc(PX+22,y,8,0,7);ctx.fill();
     const sz=fit(f.t,PW-60,27,600);txt(f.t,PX+42,y,'#fff','rgba(0,0,0,.6)',4)});
 }
 function drawBanner(now){
@@ -430,7 +430,7 @@ function frame(now){
   ctx.fillStyle=bg;ctx.fillRect(-20,-20,W+40,H+40);
   drawHeader(now);drawHelp();drawBoard();drawMap(now);drawBottom();drawFx(now,dt);drawEvent(now);drawLikeGoal(now);ctx.restore();
   if(phase==='play')drawBanner(now);else drawEnd(now,dt);
-  if(wsState!=='none'){const map={on:['🟢 CONECTAT LA LIVE','#1b5e20'],wait:['🟡 Aștept TikTok… '+Math.max(0,Math.ceil((retryAt-now)/1000))+'s','#6d5300'],bad:['🔴 Cheie tik.tools greșită','#7f0000'],off:['🔴 Deconectat — reîncerc','#7f0000']};const [t,c]=map[wsState];font(24,800);const w=ctx.measureText(t).width+28;const by=LAND?24:170;rrect(W-w-20,by,w,40,20);ctx.fillStyle=c;ctx.fill();ctx.textAlign='left';ctx.textBaseline='middle';txt(t,W-w-6,by+21,'#fff')}
+  if(wsState!=='none'){const map={on:['🟢 CONECTAT LA LIVE','#1b5e20'],wait:['🟡 Aștept TikTok… '+Math.max(0,Math.ceil((retryAt-now)/1000))+'s','#6d5300'],bad:['🔴 Cheie tik.tools greșită','#7f0000'],off:['🔴 Deconectat — reîncerc','#7f0000']};const [t,c]=map[wsState];font(24,800);const w=ctx.measureText(t).width+28;const by=LAND?24:135;rrect(W-w-20,by,w,40,20);ctx.fillStyle=c;ctx.fill();ctx.textAlign='left';ctx.textBaseline='middle';txt(t,W-w-6,by+21,'#fff')}
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
