@@ -126,7 +126,7 @@ REG.forEach((g,i)=>{let b=-1,bd=1e12;cells.forEach((c,j)=>{if(c.home!==i)return;
 const count=new Array(N).fill(0),members=new Array(N).fill(0),wins=new Array(N).fill(0),likeAcc=new Array(N).fill(0);
 const pend=REG.map(()=>({n:0,target:null}));
 const users=new Map();
-let king=null,shakeT=0,podC=[],podT=0;
+const giftCnt=[0,0,0,0];let king=null,shakeT=0,podC=[],podT=0;
 let round=1,phase='play',roundEnd=0,endUntil=0,top=null,rr=0,winner=-1;
 const feedL=[],banners=[],confetti=[];
 function recount(){count.fill(0);cells.forEach(c=>count[c.owner]++)}
@@ -192,7 +192,7 @@ function onGift(id,nick,coins,gname){
   coins=Math.max(1,Math.round(coins));u.rc+=coins;
   const n=Math.min(260,Math.ceil(10*Math.pow(coins,.7))),g=REG[u.team],T=u.team;
   if(u.target!=null)pend[T].target=u.target;
-  queue(T,n);addPts(u,coins*10);pop(u,'+'+n+' 🎁');sfx(coins>=30?'big':'hit');hearts(T,Math.min(30,6+coins));
+  giftCnt[coins>=99?3:coins>=30?2:coins>=5?1:0]++;queue(T,n);addPts(u,coins*10);pop(u,'+'+n+' 🎁');sfx(coins>=30?'big':'hit');hearts(T,Math.min(30,6+coins));
   feed(`🎁 ${u.nick} · ${gname||'cadou'} → +${n} ${g.name}`,g.col);
   if(!king||u.rc>king.rc){const nk=king!==u;king=u;if(nk&&u.rc>=5)banner('👑 REGELE CADOURILOR',`${u.nick} (${g.name}) · ${u.rc} 🪙`,g.col)}
   if(coins>=99){let L=-1;for(let i=0;i<N;i++)if(i!==T&&(L<0||count[i]>count[L]))L=i;const sv=REG[L].sh;REG[L].sh=0;let k=0;for(let i=0;i<45;i++)if(captureOne(T,L))k++;REG[L].sh=sv;
@@ -220,7 +220,7 @@ function endRound(now){
   for(let i=0;i<160;i++)confetti.push({x:Math.random()*W,y:-Math.random()*600,vy:250+Math.random()*350,vx:(Math.random()-.5)*120,r:Math.random()*6.28,col:[REG[w].col,'#002B7F','#FCD116','#CE1126','#ffffff'][i%5]});
 }
 function newRound(now){
-  phase='play';round++;resetMap();top=null;king=null;REG.forEach(g=>g.sh=0);users.forEach(u=>{u.rc=0;u.pts=0;u.target=null});ev=null;nextEv=now+35000;nextHint=now+8000;lastLeader=-1;saidMin=false;
+  phase='play';round++;resetMap();top=null;king=null;giftCnt.fill(0);REG.forEach(g=>g.sh=0);users.forEach(u=>{u.rc=0;u.pts=0;u.target=null});ev=null;nextEv=now+35000;nextHint=now+8000;lastLeader=-1;saidMin=false;
   roundEnd=now+ROUND*1000;confetti.length=0;feed(`🔔 Runda ${round} a început!`,'#ffd54f');
 }
 
@@ -273,6 +273,13 @@ function drawGiftMenu(){
   if(false){fit('🌹 1 = +10   🎁 5+ = +30',w-24,26,900);txt('🌹 1 = +10   🎁 5+ = +30',x+w/2,y+28,'#fff','rgba(0,0,0,.7)',4);fit('🛡️ 30 = SCUT 30s   ☄️ 99 = METEORIT',w-24,26,900);txt('🛡️ 30 = SCUT 30s   ☄️ 99 = METEORIT',x+w/2,y+64,'#ffe082','rgba(0,0,0,.7)',4)}
   else{const t='🌹 1🪙 = +10  ·  🛡️ 30🪙 = SCUT  ·  ☄️ 99🪙 = METEORIT PE LIDER';fit(t,w-24,26,900);txt(t,x+w/2,y+h/2+1,'#fff','rgba(0,0,0,.7)',4)}
 }
+const GR=[['🌹','Trandafir','+10'],['🫰','Inimioară','+30'],['🍩','Gogoașă','🛡️ Scut'],['🫶','Inimi','☄️ Meteorit']];
+function drawGiftRow(x,y,w,h){
+  rrect(x,y,w,h,16);ctx.fillStyle='rgba(0,0,0,.45)';ctx.fill();const tw=w/4;ctx.textAlign='center';ctx.textBaseline='middle';
+  GR.forEach((g,i)=>{const cx=x+tw*i+tw/2;font(Math.round(h*.40),400);ctx.fillText(g[0],cx,y+h*.33);
+    fit(g[2],tw-16,Math.round(h*.24),900);txt(g[2],cx,y+h*.78,'#ffe082','rgba(0,0,0,.7)',4);
+    if(giftCnt[i]){font(18,800);const t='x'+giftCnt[i];const bw=ctx.measureText(t).width+14;rrect(cx+h*.22,y+6,bw,24,12);ctx.fillStyle='#ff2d6f';ctx.fill();txt(t,cx+h*.22+bw/2,y+18,'#fff')}});
+}
 function drawLikeGoal(now){
   const x=LAND?24:30,w=LAND?470:1020,y=LAND?22:190,h=LAND?52:46,p=Math.min(1,(likeTot-likeBase)/(likeGoal-likeBase)),fl=now-likeBoomT<1500;
   rrect(x,y,w,h,16);ctx.fillStyle='rgba(0,0,0,.55)';ctx.fill();
@@ -312,7 +319,7 @@ function tickEvents(now){
   const c=o[Math.random()*o.length|0];banner(c[0],c[1],c[2]);
 }
 function drawEvent(now){
-  const x=LAND?24:30,w=LAND?470:1020,h=LAND?150:128,y=LAND?86:246;
+  const x=LAND?24:30,w=LAND?470:1020,h=LAND?150:128,y=LAND?86:356;
   if(!ev){const s=Math.ceil((nextEv-now)/1000);if(!LAND||phase!=='play'||s>15||s<0)return;
     rrect(x,y,w,56,16);ctx.fillStyle='rgba(0,0,0,.5)';ctx.fill();ctx.textAlign='center';ctx.textBaseline='middle';font(26,800);txt(`⏳ Eveniment surpriză în ${s}s`,x+w/2,y+29,'#ffe082');return}
   const p=Math.max(0,(ev.until-now)/ev.dur),pulse=.5+.5*Math.sin(now/180);
@@ -355,7 +362,8 @@ function drawHeader(now){
   txt(pill,W/2,190+HY,'#fff');
 }
 function drawHelp(){
-  if(!LAND&&ev)return;const HY0=LAND?215:246;rrect(PX,HY0,PW,128,18);ctx.fillStyle='rgba(0,0,0,.42)';ctx.fill();
+  if(!LAND){drawGiftRow(30,244,1020,100);if(ev)return;ctx.textAlign='center';ctx.textBaseline='middle';font(24,700);txt('✍️ scrie regiunea ta  ·  ⚔️ atac + regiune  ·  ❤️ like-uri = teritoriu',W/2,362,'#e3e8ff','rgba(0,0,0,.6)',4);return}
+  const HY0=215;rrect(PX,HY0,PW,128,18);ctx.fillStyle='rgba(0,0,0,.42)';ctx.fill();
   ctx.textAlign='left';let hs=28;font(hs,700);
   const L=[['✍️','scrie ','regiunea ta',' · ⚔️ atac + regiune'],['❤️','','like-uri + mesaje',' = teritoriu pentru echipa ta']];
   const mw=Math.max(...L.map(l=>ctx.measureText(l[1]+l[2]+l[3]).width))+46;if(mw>PW-40){hs=Math.floor(28*(PW-40)/mw);font(hs,700)}
@@ -366,7 +374,7 @@ function drawHelp(){
 }
 function drawBoard(){
   const tot=cells.length,ord=[...Array(N).keys()].sort((a,b)=>count[b]-count[a]||wins[b]-wins[a]);
-  const NC=LAND?2:3,GX=15,TW=(PW-GX*(NC-1))/NC,TH=52,GY=8,X0=PX,Y0=LAND?358:384;
+  const NC=LAND?2:3,GX=15,TW=(PW-GX*(NC-1))/NC,TH=52,GY=8,X0=PX,Y0=LAND?358:386;
   ord.forEach((i,k)=>{
     const g=REG[i],x=X0+(k%NC)*(TW+GX),y=Y0+Math.floor(k/NC)*(TH+GY),pct=count[i]/tot;
     rrect(x,y,TW,TH,12);ctx.fillStyle='rgba(0,0,0,.5)';ctx.fill();
@@ -391,7 +399,7 @@ function drawMap(now){
 }
 function drawBottom(){
   const y0=LAND?682:MY+MH+30;drawPodium(y0);
-  ctx.textAlign='left';ctx.textBaseline='middle';const FN=LAND?4:0;
+  ctx.textAlign='left';ctx.textBaseline='middle';const FN=LAND?3:0;if(LAND)drawGiftRow(PX,982,PW,88);ctx.textAlign='left';ctx.textBaseline='middle';
   (FN?feedL.slice(-FN):[]).forEach((f,i)=>{const y=y0+(LAND?172:165)+i*42;ctx.fillStyle=f.col;ctx.beginPath();ctx.arc(PX+22,y,8,0,7);ctx.fill();
     const sz=fit(f.t,PW-60,27,600);txt(f.t,PX+42,y,'#fff','rgba(0,0,0,.6)',4)});
 }
