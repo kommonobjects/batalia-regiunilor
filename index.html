@@ -41,11 +41,11 @@ label{display:flex;gap:4px;align-items:center}
     <button data-a="atac">⚔️ Atac</button>
   </div>
   <div class="row">
-    <button class="g" data-g="1|Trandafir">🌹 Cadou 1</button>
-    <button class="g" data-g="5|Inimă">💗 Cadou 5</button>
-    <button class="g" data-g="30|Parfum">⚔️ Asalt 30</button>
-    <button class="g" data-g="99|Coroană">🔥 Invazie 99</button>
-    <button class="g" data-g="299|Leu">👑 Cucerire 299</button>
+    <button class="g" data-g="1|Trandafir">🌹 Trandafir</button>
+    <button class="g" data-g="5|Inimă">🫰 Inimioare</button>
+    <button class="g" data-g="30|Parfum">🍩 Gogoașă</button>
+    <button class="g" data-g="99|Coroană">🫶 Inimi</button>
+    <button class="g" data-g="299|Leu">😎 Ochelari</button>
   </div>
   <div class="row">
     <button data-a="live" style="background:#c62828;border-color:#ff5252;font-weight:700">▶️ MOD LIVE</button>
@@ -169,7 +169,7 @@ function findReg(t){for(let i=0;i<N;i++)for(const a of REG[i].alias)if(t.include
 function U(id,nick){let u=users.get(id);if(!u){u={id,nick:nick||id,team:null,target:null,rc:0,pts:0,lastChat:0,likeT:0,pic:''};users.set(id,u)}if(nick)u.nick=nick;return u}
 function weakest(){let m=1e9,c=[];for(let i=0;i<N;i++){if(count[i]<m){m=count[i];c=[i]}else if(count[i]===m)c.push(i)}return c[(Math.random()*c.length)|0]}
 function addPts(u,p){u.pts=(u.pts||0)+p;if(!top||u.pts>top.pts)top=u}
-function join(u,r,rec){if(u.team!=null)members[u.team]--;u.team=r;members[r]++;queue(r,2);addPts(u,2);
+function join(u,r,rec,np){if(u.team!=null)members[u.team]--;u.team=r;members[r]++;if(!np){queue(r,2);addPts(u,2)}
   const busy=users.size>300;if(!busy||Math.random()<.1)feed(rec?`🪖 ${u.nick} recrutat de ${REG[r].name}`:`✍️ ${u.nick} luptă pentru ${REG[r].name}`,REG[r].col);if(!busy||Math.random()<.15)pop(u,'👋 '+REG[r].name);sfx('join')}
 function onChat(id,nick,text){
   const u=U(id,nick),t=norm(text),r=findReg(t),now=performance.now();
@@ -187,35 +187,33 @@ function onChat(id,nick,text){
   if(now-u.lastChat>2500){u.lastChat=now;queue(u.team,1);addPts(u,1)}
 }
 const GK=[
- {k:'asalt',e:'🌹',l:'Asalt',m:/rose|trandafir/i},
- {k:'iubire',e:'🫰',l:'Iubire',m:/finger|inimioar/i},
- {k:'scut',e:'🍩',l:'Scut',m:/dough|donut|gogoa/i},
- {k:'meteorit',e:'🫶',l:'Meteorit',m:/hand ?heart|inimi\b/i},
+ {k:'flori',e:'🌹',l:'Flori',m:/rose|trandafir/i},
+ {k:'inimioare',e:'🫰',l:'Inimioare',m:/finger|inimioar/i},
+ {k:'aura',e:'🍩',l:'Aură',m:/dough|donut|gogoa/i},
+ {k:'artificii',e:'🫶',l:'Artificii',m:/hand ?heart|inimi\b/i},
  {k:'petrecere',e:'🎉',l:'Petrecere',m:/confetti/i},
- {k:'spionaj',e:'😎',l:'Spionaj',m:/sunglass|ochelari/i}];
-const giftPic={};try{Object.assign(giftPic,JSON.parse(localStorage.getItem('br_gpics')||'{}'))}catch(e){}
+ {k:'coroana',e:'😎',l:'Coroană',m:/sunglass|ochelari/i}];
+const giftPic={};try{const o=JSON.parse(localStorage.getItem('br_gpics')||'{}'),mp={asalt:'flori',iubire:'inimioare',scut:'aura',meteorit:'artificii',spionaj:'coroana'};for(const x in o)giftPic[mp[x]||x]=o[x]}catch(e){}
 function gkind(name,unit){for(let i=0;i<GK.length;i++)if(name&&GK[i].m.test(name))return i;
   return unit>=199?5:unit>=100?3:unit>=30?2:unit>=5?1:0}
 function leader(T){let L=-1;for(let i=0;i<N;i++)if(i!==T&&(L<0||count[i]>count[L]))L=i;return L}
+function burst(col,n){for(let i=0;i<n&&confetti.length<400;i++)confetti.push({x:Math.random()*W,y:-Math.random()*500,vy:250+Math.random()*350,vx:(Math.random()-.5)*120,r:Math.random()*6.28,col:[col,'#002B7F','#FCD116','#CE1126','#ffffff'][i%5]})}
 function onGift(id,nick,coins,gname,unit,gpic){
+  /* v9: gifts are cosmetic only - they never change the map, score or ranking */
   const u=U(id,nick);
-  if(u.team==null)join(u,weakest(),true);
+  if(u.team==null)join(u,weakest(),true,true);
   coins=Math.max(1,Math.round(coins));unit=Math.max(1,Math.round(unit||coins));u.rc+=coins;
   const ki=gkind(gname,unit),K=GK[ki];giftCnt[ki]++;
   if(gpic&&giftPic[K.k]!==gpic){giftPic[K.k]=gpic;try{localStorage.setItem('br_gpics',JSON.stringify(giftPic))}catch(e){}}
-  const n=Math.min(260,Math.ceil(10*Math.pow(coins,.7))),g=REG[u.team],T=u.team,now=performance.now();
-  if(u.target!=null)pend[T].target=u.target;
-  addPts(u,coins*10);hearts(T,Math.min(30,6+coins));
-  if(!king||u.rc>king.rc){const nk=king!==u;king=u;if(nk&&u.rc>=5)banner('👑 REGELE CADOURILOR',`${u.nick} (${g.name})`,g.col)}
-  feed(`${K.e} ${u.nick} · ${K.l} → ${g.name}`,g.col);
-  if(K.k==='asalt'){queue(T,n);pop(u,'🌹 Asalt');sfx('hit')}
-  else if(K.k==='iubire'){queue(T,n);hearts(T,40);pop(u,'🫰 Iubire');sfx('hit');banner(`🫰 ${u.nick}`,`iubire pentru ${g.name}`,g.col)}
-  else if(K.k==='scut'){queue(T,n);REG[T].sh=now+30000;pop(u,'🛡️ Scut');sfx('big');banner(`🛡️ SCUT PENTRU ${g.name.toUpperCase()}`,`de la ${u.nick} · 30 de secunde`,g.col,true)}
-  else if(K.k==='meteorit'){const L=leader(T),sv=REG[L].sh;REG[L].sh=0;let k=0;for(let i=0;i<45;i++)if(captureOne(T,L))k++;REG[L].sh=sv;queue(T,Math.max(0,n-k));
-    shakeT=now+700;banners.length=0;pop(u,'☄️ Meteorit');sfx('big');banner(`☄️ METEORIT PE ${REG[L].name.toUpperCase()}!`,`lansat de ${u.nick} pentru ${g.name}`,g.col,true)}
-  else if(K.k==='petrecere'){queue(T,n);REG[T].party=now+20000;for(let i=0;i<N;i++)hearts(i,6);pop(u,'🎉 Petrecere');sfx('win');banner(`🎉 PETRECERE ÎN ${g.name.toUpperCase()}!`,`de la ${u.nick} · totul contează dublu 20s`,g.col,true)}
-  else if(K.k==='spionaj'){const L=leader(T),cc=REG[L].capCell,sv=REG[L].sh;REG[L].sh=0;if(cells[cc]&&cells[cc].owner!==T)take(cc,T);for(let i=0;i<20;i++)captureOne(T,L);REG[L].sh=sv;queue(T,n);
-    shakeT=now+400;pop(u,'😎 Spionaj');sfx('big');banner(`😎 SPIONAJ!`,`${u.nick} a furat ${REG[L].cap} pentru ${g.name}`,g.col,true)}
+  const g=REG[u.team],T=u.team,now=performance.now();
+  hearts(T,Math.min(30,6+coins));
+  feed(`${K.e} ${u.nick} · ${K.l}`,g.col);
+  if(K.k==='flori'){hearts(T,20);pop(u,'🌹 Flori');sfx('hit')}
+  else if(K.k==='inimioare'){hearts(T,60);pop(u,'🫰 Inimioare');sfx('hit');banner(`🫰 ${u.nick}`,`inimioare pentru ${g.name}`,g.col)}
+  else if(K.k==='aura'){REG[T].aura=now+30000;hearts(T,30);pop(u,'✨ Aură');sfx('big');banner(`✨ AURĂ PESTE ${g.name.toUpperCase()}`,`de la ${u.nick}`,g.col,true)}
+  else if(K.k==='artificii'){shakeT=now+600;burst(g.col,140);hearts(T,40);pop(u,'🎆 Artificii');sfx('big');banner(`🎆 ARTIFICII!`,`de la ${u.nick} pentru ${g.name}`,g.col,true)}
+  else if(K.k==='petrecere'){burst(g.col,220);for(let i=0;i<N;i++)hearts(i,8);pop(u,'🎉 Petrecere');sfx('win');banner(`🎉 PETRECERE!`,`${u.nick} dă petrecerea în ${g.name}`,g.col,true)}
+  else if(K.k==='coroana'){shakeT=now+400;burst(g.col,120);hearts(T,40);pop(u,'👑 Coroană');sfx('big');banner(`👑 ${u.nick}`,`poartă coroana în ${g.name}`,g.col,true)}
 }
 function onLike(id,nick,n){
   const u=U(id,nick);if(u.team==null)join(u,weakest(),true);
@@ -236,7 +234,7 @@ function endRound(now){
   for(let i=0;i<160;i++)confetti.push({x:Math.random()*W,y:-Math.random()*600,vy:250+Math.random()*350,vx:(Math.random()-.5)*120,r:Math.random()*6.28,col:[REG[w].col,'#002B7F','#FCD116','#CE1126','#ffffff'][i%5]});
 }
 function newRound(now){
-  phase='play';round++;resetMap();top=null;king=null;giftCnt.fill(0);REG.forEach(g=>{g.sh=0;g.party=0});users.forEach(u=>{u.rc=0;u.pts=0;u.target=null});ev=null;nextEv=now+35000;nextHint=now+8000;lastLeader=-1;saidMin=false;
+  phase='play';round++;resetMap();top=null;king=null;giftCnt.fill(0);REG.forEach(g=>{g.sh=0;g.party=0;g.aura=0});users.forEach(u=>{u.rc=0;u.pts=0;u.target=null});ev=null;nextEv=now+35000;nextHint=now+8000;lastLeader=-1;saidMin=false;
   roundEnd=now+ROUND*1000;confetti.length=0;feed(`🔔 Runda ${round} a început!`,'#ffd54f');
 }
 
@@ -283,12 +281,6 @@ let likeTot=0,likeGoal=200,likeBase=0,likeBoomT=0;const likeSince=new Array(N).f
 function likeBomb(){let b=0;for(let i=1;i<N;i++)if(likeSince[i]>likeSince[b])b=i;queue(b,30);banners.length=0;
   banner('💥 BOMBĂ DE LIKE-URI!',`${REG[b].name} a dat cele mai multe like-uri → +30`,REG[b].col,true);sfx('big');feed(`💥 Bombă de like-uri: +30 ${REG[b].name}`,REG[b].col);hearts(b,40);
   likeBase=likeGoal;likeGoal=likeBase+Math.min(500,Math.round(200+likeBase*.1));likeSince.fill(0);likeBoomT=performance.now()}
-function drawGiftMenu(){
-  const x=LAND?PX:30,w=LAND?PW:1020,h=52,y=LAND?H-h-14:H-30-130-66-64;
-  rrect(x,y,w,h,16);ctx.fillStyle='rgba(0,0,0,.6)';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#ffd54f';ctx.stroke();ctx.textAlign='center';ctx.textBaseline='middle';
-  if(false){fit('🌹 1 = +10   🎁 5+ = +30',w-24,26,900);txt('🌹 1 = +10   🎁 5+ = +30',x+w/2,y+28,'#fff','rgba(0,0,0,.7)',4);fit('🛡️ 30 = SCUT 30s   ☄️ 99 = METEORIT',w-24,26,900);txt('🛡️ 30 = SCUT 30s   ☄️ 99 = METEORIT',x+w/2,y+64,'#ffe082','rgba(0,0,0,.7)',4)}
-  else{const t='🌹 1🪙 = +10  ·  🛡️ 30🪙 = SCUT  ·  ☄️ 99🪙 = METEORIT PE LIDER';fit(t,w-24,26,900);txt(t,x+w/2,y+h/2+1,'#fff','rgba(0,0,0,.7)',4)}
-}
 function drawGiftRow(x,y,w,h){
   rrect(x,y,w,h,16);ctx.fillStyle='rgba(0,0,0,.45)';ctx.fill();const tw=w/GK.length;ctx.textAlign='center';ctx.textBaseline='middle';
   GK.forEach((g,i)=>{const cx=x+tw*i+tw/2,isz=Math.round(h*.46),im=img(giftPic[g.k]);
@@ -395,7 +387,7 @@ function drawBoard(){
     const g=REG[i],x=X0+(k%NC)*(TW+GX),y=Y0+Math.floor(k/NC)*(TH+GY),pct=count[i]/tot;
     rrect(x,y,TW,TH,12);ctx.fillStyle='rgba(0,0,0,.5)';ctx.fill();
     ctx.save();rrect(x,y,TW,TH,12);ctx.clip();ctx.fillStyle=g.col;ctx.globalAlpha=.32;ctx.fillRect(x,y,TW*Math.min(1,pct*2.2),TH);ctx.globalAlpha=1;ctx.fillRect(x,y,8,TH);ctx.restore();
-    ctx.textAlign='left';font(25,800);txt(`${k===0&&count[i]>0?'👑 ':''}${g.sh>performance.now()?'🛡️':''}${g.name}`,x+18,y+20,'#fff','rgba(0,0,0,.6)',4);
+    ctx.textAlign='left';font(25,800);txt(`${k===0&&count[i]>0?'👑 ':''}${g.sh>performance.now()?'🛡️':''}${g.aura>performance.now()?'✨':''}${g.name}`,x+18,y+20,'#fff','rgba(0,0,0,.6)',4);
     font(18,600);ctx.fillStyle='#d6dcff';ctx.fillText(`👥 ${members[i]}   🏆 ${wins[i]}`,x+18,y+41);
     ctx.textAlign='right';font(30,900);txt(`${Math.round(pct*100)}%`,x+TW-12,y+TH/2+1,'#fff','rgba(0,0,0,.6)',4);
   });
@@ -438,7 +430,6 @@ function drawEnd(now,dt){
   fit(g.name.toUpperCase(),980,130,900);txt(g.name.toUpperCase(),W/2,860+EY,g.col,'#000',14);
   font(56,900);txt(`CÂȘTIGĂ RUNDA ${round}!`,W/2,960+EY,'#fff','#000',8);
   font(40,700);txt(`${Math.round(count[winner]/cells.length*100)}% din România · ${wins[winner]} ${wins[winner]===1?'victorie':'victorii'} în total`,W/2,1035+EY,'#ffe082','#000',6);
-  if(king){const kt=`👑 Regele cadourilor: ${king.nick} · ${king.rc} 🪙`;fit(kt,980,36,800);txt(kt,W/2,1250+EY,'#ffe082','#000',6)}
   if(top){const pt=`Patriotul rundei: ${top.nick} · ${Math.round(top.pts)} puncte`;fit(pt,980,38,700);txt(pt,W/2,1105+EY,'#fff','#000',6)}
   font(34,600);txt(`Runda următoare în ${Math.ceil((endUntil-now)/1000)}s — alege-ți regiunea!`,W/2,1190+EY,'#cfd8ff','#000',5);
 }
