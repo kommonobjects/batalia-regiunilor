@@ -15,6 +15,8 @@ html,body{margin:0;background:#070a16;color:#fff;font-family:system-ui,-apple-sy
 #c{width:min(calc(100vw - 20px),calc((100vh - 170px)*0.5625));min-width:280px;aspect-ratio:9/16;border-radius:14px;box-shadow:0 10px 40px #000a;background:#0b1024}
 body.live #wrap{padding:0;height:100vh;height:100dvh;justify-content:center;background:#070a16}
 body.live #c{width:min(100vw,calc(100dvh*0.5625));min-width:0;border-radius:0;box-shadow:none}
+body.land #c{aspect-ratio:16/9;width:min(calc(100vw - 20px),calc((100vh - 170px)*1.7778))}
+body.land.live #c{width:min(100vw,calc(100dvh*1.7778))}
 body.live #ctl{display:none}
 #ctl{width:min(100%,720px);display:flex;flex-direction:column;gap:6px;font-size:13px}
 .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center}
@@ -68,11 +70,16 @@ label{display:flex;gap:4px;align-items:center}
 </div>
 <script>
 (()=>{
-const W=1080,H=1920,FF='system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
-const cv=document.getElementById('c'),ctx=cv.getContext('2d');cv.width=W;cv.height=H;
 const Q=new URLSearchParams(location.search),LIVE=Q.has('live');
+const OQ=Q.get('o'),LAND=OQ==='l'||(OQ!=='p'&&innerWidth>innerHeight);
+const W=LAND?1920:1080,H=LAND?1080:1920,FF='system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');cv.width=W;cv.height=H;
+if(LAND){document.body.classList.add('land')}
+if(!OQ){const mq=matchMedia('(orientation: landscape)');mq.addEventListener&&mq.addEventListener('change',()=>{if(mq.matches!==LAND)location.reload()})}
+/* layout: PX/PW = side panel (landscape) */
+const PX=LAND?1230:30,PW=LAND?660:1020,EY=LAND?-420:0;
 if(LIVE)document.body.classList.add('live');
-const ROUND=180,END_SHOW=9;
+const ROUND=Math.max(1,+Q.get('r')||5)*60,END_SHOW=10;
 
 /* ---------- Regions ---------- */
 const REG=[
@@ -92,12 +99,12 @@ REG.forEach(g=>{g.rgb=hexRgb(g.col);g.top=g.col;g.side=`rgb(${g.rgb.map(v=>v*.55
 
 /* ---------- Map: simplified outline of Romania (lon,lat) ---------- */
 const OUT=[[22.9,47.97],[23.9,47.98],[24.9,47.73],[25.6,47.93],[26.6,48.25],[27.2,47.8],[27.8,47.3],[28.1,46.95],[28.2,46.3],[28.1,45.6],[28.2,45.45],[28.7,45.25],[29.7,45.35],[29.65,44.85],[28.95,44.5],[28.6,43.74],[27.9,43.98],[27.0,44.1],[26.1,43.7],[25.0,43.68],[24.0,43.72],[23.3,43.85],[22.9,43.95],[22.6,44.2],[22.4,44.6],[22.0,44.5],[21.4,44.8],[21.4,45.2],[20.8,45.5],[20.3,46.1],[21.0,46.3],[21.5,46.7],[21.9,47.4],[22.3,47.75]];
-const K=0.695,MX=40,MW=1000,S=MW/((29.75-20.25)*K),MY=540,MH=4.7*S;
+const K=0.695,MX=LAND?30:40,MW=LAND?1160:1000,S=MW/((29.75-20.25)*K),MY=LAND?215:540,MH=4.7*S,MC=MX+MW/2;
 const px=lon=>MX+(lon-20.25)*K*S, py=lat=>MY+(48.35-lat)*S;
 function pip(x,y,P){let ins=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const[xi,yi]=P[i],[xj,yj]=P[j];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))ins=!ins}return ins}
 REG.forEach(g=>g.sp=g.seeds.map(([lo,la])=>[px(lo),py(la)]));
 
-const R=13,HW=Math.sqrt(3)*R,VS=1.5*R;
+const R=13*MW/1000,HW=Math.sqrt(3)*R,VS=1.5*R;
 const cells=[],grid=new Map();
 for(let row=0;row*VS<=MH;row++)for(let col=0;col*HW<=MW;col++){
   const x=MX+col*HW+(row&1?HW/2:0),y=MY+row*VS;
@@ -213,29 +220,31 @@ const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 function drawHeader(now){
   ctx.textAlign='center';ctx.textBaseline='middle';
   const g=ctx.createLinearGradient(0,40,0,130);g.addColorStop(0,'#fff3c4');g.addColorStop(.5,'#ffca28');g.addColorStop(1,'#ff8f00');
-  const sz=fit('BĂTĂLIA REGIUNILOR',1000,92,900);font(sz,900);
-  txt('BĂTĂLIA REGIUNILOR',W/2,88,g,'#3e1d00',14);
-  const cols=['#002B7F','#FCD116','#CE1126'];cols.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(W/2-150+i*100,140,100,10)});
+  const sz=fit('BĂTĂLIA REGIUNILOR',1000,LAND?84:92,900);font(sz,900);
+  txt('BĂTĂLIA REGIUNILOR',W/2,LAND?66:88,g,'#3e1d00',14);
+  const HY=LAND?-30:0;
+  const cols=['#002B7F','#FCD116','#CE1126'];cols.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(W/2-150+i*100,140+HY,100,10)});
   const left=phase==='play'?Math.max(0,(roundEnd-now)/1000):0;
   const pill=`RUNDA ${round}  ·  ${phase==='play'?fmt(left):'FINAL'}`;
   font(32,800);const pw=ctx.measureText(pill).width+50;
-  rrect(W/2-pw/2,165,pw,48,24);ctx.fillStyle=left<15&&phase==='play'?'#c62828':'rgba(0,0,0,.5)';ctx.fill();
-  txt(pill,W/2,190,'#fff');
+  rrect(W/2-pw/2,165+HY,pw,48,24);ctx.fillStyle=left<15&&phase==='play'?'#c62828':'rgba(0,0,0,.5)';ctx.fill();
+  txt(pill,W/2,190+HY,'#fff');
 }
 function drawHelp(){
-  rrect(30,228,1020,128,18);ctx.fillStyle='rgba(0,0,0,.42)';ctx.fill();
-  ctx.textAlign='left';font(28,700);
-  const L=[['✍️','scrie ','regiunea ta',' (ex: ardeal) ca să intri în echipă'],['⚔️','scrie ','atac + regiune',' ca să alegi pe cine cucerești'],['🎁','orice ','cadou',' cucerește teritoriu — cu cât e mai mare, cu atât mai mult']];
-  L.forEach((l,i)=>{let x=52;const y=262+i*38;ctx.fillStyle='#fff';ctx.fillText(l[0],x,y);x+=46;
+  const HY0=LAND?215:228;rrect(PX,HY0,PW,128,18);ctx.fillStyle='rgba(0,0,0,.42)';ctx.fill();
+  ctx.textAlign='left';let hs=28;font(hs,700);
+  const L=[['✍️','scrie ','regiunea ta',LAND?' (ex: ardeal) = intri în echipă':' (ex: ardeal) ca să intri în echipă'],['⚔️','scrie ','atac + regiune',' ca să alegi pe cine cucerești'],['🎁','orice ','cadou',LAND?' = teritoriu (mai mare = mai mult)':' cucerește teritoriu — cu cât e mai mare, cu atât mai mult']];
+  const mw=Math.max(...L.map(l=>ctx.measureText(l[1]+l[2]+l[3]).width))+46;if(mw>PW-40){hs=Math.floor(28*(PW-40)/mw);font(hs,700)}
+  L.forEach((l,i)=>{let x=PX+22;const y=HY0+34+i*38;ctx.fillStyle='#fff';ctx.fillText(l[0],x,y);x+=hs*1.65;
     ctx.fillStyle='#cfd8ff';ctx.fillText(l[1],x,y);x+=ctx.measureText(l[1]).width;
     ctx.fillStyle='#ffd54f';ctx.fillText(l[2],x,y);x+=ctx.measureText(l[2]).width;
     ctx.fillStyle='#cfd8ff';ctx.fillText(l[3],x,y)});
 }
 function drawBoard(){
   const tot=cells.length,ord=[...Array(N).keys()].sort((a,b)=>count[b]-count[a]||wins[b]-wins[a]);
-  const TW=330,TH=52,GX=15,GY=8,X0=30,Y0=368;
+  const NC=LAND?2:3,GX=15,TW=(PW-GX*(NC-1))/NC,TH=52,GY=8,X0=PX,Y0=LAND?358:368;
   ord.forEach((i,k)=>{
-    const g=REG[i],x=X0+(k%3)*(TW+GX),y=Y0+Math.floor(k/3)*(TH+GY),pct=count[i]/tot;
+    const g=REG[i],x=X0+(k%NC)*(TW+GX),y=Y0+Math.floor(k/NC)*(TH+GY),pct=count[i]/tot;
     rrect(x,y,TW,TH,12);ctx.fillStyle='rgba(0,0,0,.5)';ctx.fill();
     ctx.save();rrect(x,y,TW,TH,12);ctx.clip();ctx.fillStyle=g.col;ctx.globalAlpha=.32;ctx.fillRect(x,y,TW*Math.min(1,pct*2.2),TH);ctx.globalAlpha=1;ctx.fillRect(x,y,8,TH);ctx.restore();
     ctx.textAlign='left';font(25,800);txt(`${k===0&&count[i]>0?'👑 ':''}${g.name}`,x+18,y+20,'#fff','rgba(0,0,0,.6)',4);
@@ -254,20 +263,20 @@ function drawMap(now){
   REG.forEach((g,i)=>{const c=cells[g.capCell];if(!c)return;const lost=c.owner!==i;
     font(26,400);ctx.fillText(lost?'⚔️':'🏰',c.x,c.y-2);
     font(21,800);txt(g.cap,c.x,c.y-28,lost?'#ffab91':'#fff','rgba(0,0,0,.8)',5)});
-  if(phase==='play'){const left=(roundEnd-now)/1000;if(left<10&&left>0){font(300,900);ctx.globalAlpha=.35+.25*(left%1);txt(String(Math.ceil(left)),W/2,MY+MH/2,'#fff','#000',12);ctx.globalAlpha=1}}
+  if(phase==='play'){const left=(roundEnd-now)/1000;if(left<10&&left>0){font(300,900);ctx.globalAlpha=.35+.25*(left%1);txt(String(Math.ceil(left)),MC,MY+MH/2,'#fff','#000',12);ctx.globalAlpha=1}}
 }
 function drawBottom(){
-  const y0=MY+MH+28;ctx.textAlign='center';
-  if(top){const g=REG[top.team];font(30,800);txt(`👑 Cel mai mare patriot: ${top.nick} (${g.name}) · ${top.rc} 🪙`,W/2,y0,'#ffe082','rgba(0,0,0,.7)',5)}
+  const y0=LAND?700:MY+MH+28;ctx.textAlign='center';const BX=PX+PW/2;
+  if(top){const g=REG[top.team];font(30,800);const tt=`👑 Cel mai mare patriot: ${top.nick} (${g.name}) · ${top.rc} 🪙`;fit(tt,PW,30,800);txt(tt,BX,y0,'#ffe082','rgba(0,0,0,.7)',5)}
   ctx.textAlign='left';
-  feedL.slice(-7).forEach((f,i)=>{const y=y0+52+i*40;ctx.fillStyle=f.col;ctx.beginPath();ctx.arc(52,y,8,0,7);ctx.fill();
-    const sz=fit(f.t,960,27,600);txt(f.t,72,y,'#fff','rgba(0,0,0,.6)',4)});
+  feedL.slice(-7).forEach((f,i)=>{const y=y0+52+i*40;ctx.fillStyle=f.col;ctx.beginPath();ctx.arc(PX+22,y,8,0,7);ctx.fill();
+    const sz=fit(f.t,PW-60,27,600);txt(f.t,PX+42,y,'#fff','rgba(0,0,0,.6)',4)});
 }
 function drawBanner(now){
   const b=banners[0];if(!b)return;if(!b.t0)b.t0=now;
   const dur=b.big?2800:2000,p=(now-b.t0)/dur;if(p>=1){banners.shift();return}
   const s=p<.12?.6+.48*(p/.12):p<.2?1.08-.08*((p-.12)/.08):1,a=p>.82?1-(p-.82)/.18:1;
-  ctx.save();ctx.globalAlpha=a;ctx.translate(W/2,MY+MH*.45);ctx.scale(s,s);
+  ctx.save();ctx.globalAlpha=a;ctx.translate(MC,MY+MH*.45);ctx.scale(s,s);
   rrect(-470,-90,940,180,26);ctx.fillStyle='rgba(5,8,20,.82)';ctx.fill();ctx.lineWidth=7;ctx.strokeStyle=b.col;ctx.stroke();
   ctx.textAlign='center';ctx.shadowColor=b.col;ctx.shadowBlur=30;
   fit(b.title,880,78,900);txt(b.title,0,-22,'#fff',b.col,4);ctx.shadowBlur=0;
@@ -278,12 +287,12 @@ function drawEnd(now,dt){
   ctx.fillStyle='rgba(0,0,0,.62)';ctx.fillRect(0,0,W,H);
   confetti.forEach(c=>{c.y+=c.vy*dt;c.x+=c.vx*dt;c.r+=dt*5;if(c.y>H)c.y=-20;ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.fillStyle=c.col;ctx.fillRect(-7,-4,14,8);ctx.restore()});
   const g=REG[winner];ctx.textAlign='center';
-  font(170,400);ctx.fillText('🏆',W/2,700);
-  fit(g.name.toUpperCase(),980,130,900);txt(g.name.toUpperCase(),W/2,860,g.col,'#000',14);
-  font(56,900);txt(`CÂȘTIGĂ RUNDA ${round}!`,W/2,960,'#fff','#000',8);
-  font(40,700);txt(`${Math.round(count[winner]/cells.length*100)}% din România · ${wins[winner]} ${wins[winner]===1?'victorie':'victorii'} în total`,W/2,1035,'#ffe082','#000',6);
-  if(top){fit(`Patriotul rundei: ${top.nick} · ${top.rc} 🪙`,980,38,700);txt(`Patriotul rundei: ${top.nick} · ${top.rc} 🪙`,W/2,1105,'#fff','#000',6)}
-  font(34,600);txt(`Runda următoare în ${Math.ceil((endUntil-now)/1000)}s — alege-ți regiunea!`,W/2,1190,'#cfd8ff','#000',5);
+  font(170,400);ctx.fillText('🏆',W/2,700+EY);
+  fit(g.name.toUpperCase(),980,130,900);txt(g.name.toUpperCase(),W/2,860+EY,g.col,'#000',14);
+  font(56,900);txt(`CÂȘTIGĂ RUNDA ${round}!`,W/2,960+EY,'#fff','#000',8);
+  font(40,700);txt(`${Math.round(count[winner]/cells.length*100)}% din România · ${wins[winner]} ${wins[winner]===1?'victorie':'victorii'} în total`,W/2,1035+EY,'#ffe082','#000',6);
+  if(top){fit(`Patriotul rundei: ${top.nick} · ${top.rc} 🪙`,980,38,700);txt(`Patriotul rundei: ${top.nick} · ${top.rc} 🪙`,W/2,1105+EY,'#fff','#000',6)}
+  font(34,600);txt(`Runda următoare în ${Math.ceil((endUntil-now)/1000)}s — alege-ți regiunea!`,W/2,1190+EY,'#cfd8ff','#000',5);
 }
 
 /* ---------- Loop ---------- */
@@ -296,7 +305,7 @@ function frame(now){
   ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
   drawHeader(now);drawHelp();drawBoard();drawMap(now);drawBottom();
   if(phase==='play')drawBanner(now);else drawEnd(now,dt);
-  if(wsState!=='none'){const map={on:['🟢 CONECTAT LA LIVE','#1b5e20'],wait:['🟡 Aștept TikTok… '+Math.max(0,Math.ceil((retryAt-now)/1000))+'s','#6d5300'],bad:['🔴 Cheie tik.tools greșită','#7f0000'],off:['🔴 Deconectat — reîncerc','#7f0000']};const [t,c]=map[wsState];font(24,800);const w=ctx.measureText(t).width+28;rrect(W-w-20,24,w,40,20);ctx.fillStyle=c;ctx.fill();ctx.textAlign='left';ctx.textBaseline='middle';txt(t,W-w-6,45,'#fff')}
+  if(wsState!=='none'){const map={on:['🟢 CONECTAT LA LIVE','#1b5e20'],wait:['🟡 Aștept TikTok… '+Math.max(0,Math.ceil((retryAt-now)/1000))+'s','#6d5300'],bad:['🔴 Cheie tik.tools greșită','#7f0000'],off:['🔴 Deconectat — reîncerc','#7f0000']};const [t,c]=map[wsState];font(24,800);const w=ctx.measureText(t).width+28;const by=LAND?24:170;rrect(W-w-20,by,w,40,20);ctx.fillStyle=c;ctx.fill();ctx.textAlign='left';ctx.textBaseline='middle';txt(t,W-w-6,by+21,'#fff')}
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
