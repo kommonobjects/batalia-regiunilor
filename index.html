@@ -126,6 +126,7 @@ REG.forEach((g,i)=>{let b=-1,bd=1e12;cells.forEach((c,j)=>{if(c.home!==i)return;
 const count=new Array(N).fill(0),members=new Array(N).fill(0),wins=new Array(N).fill(0),likeAcc=new Array(N).fill(0);
 const pend=REG.map(()=>({n:0,target:null}));
 const users=new Map();
+let king=null,shakeT=0,podC=[],podT=0;
 let round=1,phase='play',roundEnd=0,endUntil=0,top=null,rr=0,winner=-1;
 const feedL=[],banners=[],confetti=[];
 function recount(){count.fill(0);cells.forEach(c=>count[c.owner]++)}
@@ -146,7 +147,7 @@ function take(j,t){
 }
 function captureOne(t,target){
   const cand=[];
-  for(const c of cells){if(c.owner!==t)continue;for(const j of c.nb)if(cells[j].owner!==t)cand.push(j)}
+  const NOW=performance.now();for(const c of cells){if(c.owner!==t)continue;for(const j of c.nb){const o=cells[j].owner;if(o!==t&&!(REG[o].sh>NOW))cand.push(j)}}
   if(!cand.length){if(count[t]===0){take(REG[t].capCell,t);feed(`${REG[t].name} renaște la ${REG[t].cap}!`,REG[t].col);return true}return false}
   let pool=cand;
   if(target!=null&&target!==t){const f=cand.filter(j=>cells[j].owner===target);if(f.length)pool=f}
@@ -158,7 +159,7 @@ function mult(t){if(!ev)return 1;if(ev.k==='blitz'&&ev.t===t)return 2;if(ev.k===
 function queue(t,n){if(phase!=='play')return;pend[t].n+=Math.round(n*mult(t))}
 function processQueue(){
   let total=0;pend.forEach(p=>total+=p.n);if(!total)return;
-  let budget=Math.min(14,2+Math.floor(total/30)),guard=0;
+  let budget=Math.min(40,2+Math.floor(total/20)),guard=0;
   while(budget>0&&guard<N*3){guard++;rr=(rr+1)%N;const q=pend[rr];if(q.n>0){const tg=(ev&&ev.k==='capital'&&rr!==ev.t)?ev.t:q.target;if(captureOne(rr,tg)){q.n--;budget--}else q.n=0}}
 }
 
@@ -169,7 +170,7 @@ function U(id,nick){let u=users.get(id);if(!u){u={id,nick:nick||id,team:null,tar
 function weakest(){let m=1e9,c=[];for(let i=0;i<N;i++){if(count[i]<m){m=count[i];c=[i]}else if(count[i]===m)c.push(i)}return c[(Math.random()*c.length)|0]}
 function addPts(u,p){u.pts=(u.pts||0)+p;if(!top||u.pts>top.pts)top=u}
 function join(u,r,rec){if(u.team!=null)members[u.team]--;u.team=r;members[r]++;queue(r,2);addPts(u,2);
-  feed(rec?`🪖 ${u.nick} recrutat de ${REG[r].name}`:`✍️ ${u.nick} luptă pentru ${REG[r].name}`,REG[r].col);pop(u,'👋 '+REG[r].name);sfx('join')}
+  const busy=users.size>300;if(!busy||Math.random()<.1)feed(rec?`🪖 ${u.nick} recrutat de ${REG[r].name}`:`✍️ ${u.nick} luptă pentru ${REG[r].name}`,REG[r].col);if(!busy||Math.random()<.15)pop(u,'👋 '+REG[r].name);sfx('join')}
 function onChat(id,nick,text){
   const u=U(id,nick),t=norm(text),r=findReg(t),now=performance.now();
   if(ev&&ev.k==='word'&&!ev.won&&t.includes(ev.w)){if(u.team==null)join(u,weakest(),true);ev.won=u;ev.until=Math.min(ev.until,now+3000);queue(u.team,25);addPts(u,25);
@@ -189,13 +190,16 @@ function onGift(id,nick,coins,gname){
   const u=U(id,nick);
   if(u.team==null)join(u,weakest(),true);
   coins=Math.max(1,Math.round(coins));u.rc+=coins;
-  const n=Math.ceil(3*Math.pow(coins,.75)),g=REG[u.team];
-  if(u.target!=null)pend[u.team].target=u.target;
-  queue(u.team,n);addPts(u,coins*10);pop(u,'+'+n+' 🎁');sfx(coins>=30?'big':'hit');
-  feed(`🎁 ${u.nick} · ${gname||'cadou'} → +${n} teritoriu ${g.name}`,g.col);
-  if(coins>=299)banner('CUCERIRE TOTALĂ!',`${u.nick} pentru ${g.name}`,g.col,true);
-  else if(coins>=99)banner('INVAZIE!',`${u.nick} pentru ${g.name}`,g.col,true);
-  else if(coins>=30)banner(`ASALT DIN ${g.name.toUpperCase()}!`,u.nick,g.col,true);
+  const n=Math.min(260,Math.ceil(10*Math.pow(coins,.7))),g=REG[u.team],T=u.team;
+  if(u.target!=null)pend[T].target=u.target;
+  queue(T,n);addPts(u,coins*10);pop(u,'+'+n+' 🎁');sfx(coins>=30?'big':'hit');hearts(T,Math.min(30,6+coins));
+  feed(`🎁 ${u.nick} · ${gname||'cadou'} → +${n} ${g.name}`,g.col);
+  if(!king||u.rc>king.rc){const nk=king!==u;king=u;if(nk&&u.rc>=5)banner('👑 REGELE CADOURILOR',`${u.nick} (${g.name}) · ${u.rc} 🪙`,g.col)}
+  if(coins>=99){let L=-1;for(let i=0;i<N;i++)if(i!==T&&(L<0||count[i]>count[L]))L=i;const sv=REG[L].sh;REG[L].sh=0;let k=0;for(let i=0;i<45;i++)if(captureOne(T,L))k++;REG[L].sh=sv;
+    shakeT=performance.now()+700;banners.length=0;banner(`☄️ METEORIT PE ${REG[L].name.toUpperCase()}!`,`${u.nick} a lovit liderul → +${k} pentru ${g.name}`,g.col,true);feed(`☄️ ${u.nick}: meteorit pe ${REG[L].name}`,g.col)}
+  else if(coins>=30){REG[T].sh=performance.now()+30000;banner(`🛡️ SCUT PENTRU ${g.name.toUpperCase()}!`,`${u.nick} — nimeni nu o poate ataca 30s`,g.col,true)}
+  else if(coins>=5)banner(`🎁 ${u.nick.toUpperCase()}`,`+${n} teritoriu pentru ${g.name}`,g.col);
+  else if(Math.random()<.5)banner(`🌹 ${u.nick}`,`+${n} pentru ${g.name}`,g.col);
 }
 function onLike(id,nick,n){
   const u=U(id,nick);if(u.team==null)join(u,weakest(),true);
@@ -216,7 +220,7 @@ function endRound(now){
   for(let i=0;i<160;i++)confetti.push({x:Math.random()*W,y:-Math.random()*600,vy:250+Math.random()*350,vx:(Math.random()-.5)*120,r:Math.random()*6.28,col:[REG[w].col,'#002B7F','#FCD116','#CE1126','#ffffff'][i%5]});
 }
 function newRound(now){
-  phase='play';round++;resetMap();top=null;users.forEach(u=>{u.rc=0;u.pts=0;u.target=null});ev=null;nextEv=now+35000;nextHint=now+8000;lastLeader=-1;saidMin=false;
+  phase='play';round++;resetMap();top=null;king=null;REG.forEach(g=>g.sh=0);users.forEach(u=>{u.rc=0;u.pts=0;u.target=null});ev=null;nextEv=now+35000;nextHint=now+8000;lastLeader=-1;saidMin=false;
   roundEnd=now+ROUND*1000;confetti.length=0;feed(`🔔 Runda ${round} a început!`,'#ffd54f');
 }
 
@@ -262,7 +266,13 @@ function drawFx(now,dt){
 let likeTot=0,likeGoal=200,likeBase=0,likeBoomT=0;const likeSince=new Array(N).fill(0);
 function likeBomb(){let b=0;for(let i=1;i<N;i++)if(likeSince[i]>likeSince[b])b=i;queue(b,30);banners.length=0;
   banner('💥 BOMBĂ DE LIKE-URI!',`${REG[b].name} a dat cele mai multe like-uri → +30`,REG[b].col,true);sfx('big');feed(`💥 Bombă de like-uri: +30 ${REG[b].name}`,REG[b].col);hearts(b,40);
-  likeBase=likeGoal;likeGoal=likeBase+Math.round(200+likeBase*.25);likeSince.fill(0);likeBoomT=performance.now()}
+  likeBase=likeGoal;likeGoal=likeBase+Math.min(500,Math.round(200+likeBase*.1));likeSince.fill(0);likeBoomT=performance.now()}
+function drawGiftMenu(){
+  const x=LAND?PX:30,w=LAND?PW:1020,h=52,y=LAND?H-h-14:H-30-130-66-64;
+  rrect(x,y,w,h,16);ctx.fillStyle='rgba(0,0,0,.6)';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#ffd54f';ctx.stroke();ctx.textAlign='center';ctx.textBaseline='middle';
+  if(false){fit('🌹 1 = +10   🎁 5+ = +30',w-24,26,900);txt('🌹 1 = +10   🎁 5+ = +30',x+w/2,y+28,'#fff','rgba(0,0,0,.7)',4);fit('🛡️ 30 = SCUT 30s   ☄️ 99 = METEORIT',w-24,26,900);txt('🛡️ 30 = SCUT 30s   ☄️ 99 = METEORIT',x+w/2,y+64,'#ffe082','rgba(0,0,0,.7)',4)}
+  else{const t='🌹 1🪙 = +10  ·  🛡️ 30🪙 = SCUT  ·  ☄️ 99🪙 = METEORIT PE LIDER';fit(t,w-24,26,900);txt(t,x+w/2,y+h/2+1,'#fff','rgba(0,0,0,.7)',4)}
+}
 function drawLikeGoal(now){
   const x=LAND?24:30,w=LAND?470:1020,y=LAND?22:H-30-130-66,h=52,p=Math.min(1,(likeTot-likeBase)/(likeGoal-likeBase)),fl=now-likeBoomT<1500;
   rrect(x,y,w,h,16);ctx.fillStyle='rgba(0,0,0,.55)';ctx.fill();
@@ -289,7 +299,7 @@ function tickEvents(now){
   if(!ev&&now>=nextEv&&roundEnd-now>15000)startEvent(now);
   if(ev&&now>=ev.until){if(ev.k==='word'&&!ev.won)feed('🧠 Nimeni n-a fost destul de rapid 😅','#ffd54f');ev=null;nextEv=now+30000+Math.random()*10000}
   const left=roundEnd-now;
-  if(!saidMin&&left<60000&&left>45000){saidMin=true;banner('ULTIMUL MINUT!','dați tot — like, chat, cadouri!','#ff5252',true);sfx('event')}
+  if(!saidMin&&left<60000&&left>45000){saidMin=true;banner('ULTIMUL MINUT!','dați tot — like-uri și mesaje!','#ff5252',true);sfx('event')}
   let lead=0;for(let i=1;i<N;i++)if(count[i]>count[lead])lead=i;
   if(lead!==lastLeader){const prev=lastLeader;lastLeader=lead;if(prev>=0&&ROUND*1000-left>15000&&now-leadT>8000){leadT=now;banner(`${REG[lead].name.toUpperCase()} TRECE PE LOCUL 1!`,`a depășit-o pe ${REG[prev].name}`,REG[lead].col);sfx('hit')}}
   if(now<nextHint||banners.length||ev)return;nextHint=now+20000;
@@ -314,7 +324,7 @@ function drawEvent(now){
   if(p>0){rrect(x+20,y+h-34,(w-40)*p,14,7);ctx.fillStyle=ev.col;ctx.fill()}
 }
 function drawPodium(y){
-  const arr=[...users.values()].filter(u=>u.pts>0&&u.team!=null).sort((a,b)=>b.pts-a.pts).slice(0,3),sl=PW/3;
+  const tn=performance.now();if(tn-podT>500){podT=tn;podC=[...users.values()].filter(u=>u.pts>0&&u.team!=null).sort((a,b)=>b.pts-a.pts).slice(0,3)}const arr=podC,sl=PW/3;
   ctx.textAlign='center';ctx.textBaseline='middle';font(24,900);txt('🏆 TOP JUCĂTORI',PX+PW/2,y,'#ffe082','rgba(0,0,0,.7)',4);
   if(!arr.length){font(22,600);ctx.fillStyle='#cfd8ff';ctx.fillText('scrie în chat ca să apari aici 👀',PX+PW/2,y+56);return}
   arr.forEach((u,i)=>{const cx=PX+sl*i+sl/2,cy=y+56,lb=['🥇','🥈','🥉'][i]+' '+u.nick;avatar(u,cx,cy,30);ctx.textAlign='center';ctx.textBaseline='middle';fit(lb,sl-12,21,800);txt(lb,cx,cy+50,'#fff','rgba(0,0,0,.7)',4);
@@ -347,7 +357,7 @@ function drawHeader(now){
 function drawHelp(){
   const HY0=LAND?215:228;rrect(PX,HY0,PW,128,18);ctx.fillStyle='rgba(0,0,0,.42)';ctx.fill();
   ctx.textAlign='left';let hs=28;font(hs,700);
-  const L=[['✍️','scrie ','regiunea ta',LAND?' (ex: ardeal) = intri în echipă':' (ex: ardeal) ca să intri în echipă'],['⚔️','scrie ','atac + regiune',' ca să alegi pe cine cucerești'],['🎁','orice ','cadou',LAND?' = teritoriu (mai mare = mai mult)':' cucerește teritoriu — cu cât e mai mare, cu atât mai mult']];
+  const L=[['✍️','scrie ','regiunea ta',LAND?' (ex: ardeal) = intri în echipă':' (ex: ardeal) ca să intri în echipă'],['⚔️','scrie ','atac + regiune',' ca să alegi pe cine cucerești'],['❤️','','like-uri + mesaje',' = teritoriu pentru echipa ta']];
   const mw=Math.max(...L.map(l=>ctx.measureText(l[1]+l[2]+l[3]).width))+46;if(mw>PW-40){hs=Math.floor(28*(PW-40)/mw);font(hs,700)}
   L.forEach((l,i)=>{let x=PX+22;const y=HY0+34+i*38;ctx.fillStyle='#fff';ctx.fillText(l[0],x,y);x+=hs*1.65;
     ctx.fillStyle='#cfd8ff';ctx.fillText(l[1],x,y);x+=ctx.measureText(l[1]).width;
@@ -361,7 +371,7 @@ function drawBoard(){
     const g=REG[i],x=X0+(k%NC)*(TW+GX),y=Y0+Math.floor(k/NC)*(TH+GY),pct=count[i]/tot;
     rrect(x,y,TW,TH,12);ctx.fillStyle='rgba(0,0,0,.5)';ctx.fill();
     ctx.save();rrect(x,y,TW,TH,12);ctx.clip();ctx.fillStyle=g.col;ctx.globalAlpha=.32;ctx.fillRect(x,y,TW*Math.min(1,pct*2.2),TH);ctx.globalAlpha=1;ctx.fillRect(x,y,8,TH);ctx.restore();
-    ctx.textAlign='left';font(25,800);txt(`${k===0&&count[i]>0?'👑 ':''}${g.name}`,x+18,y+20,'#fff','rgba(0,0,0,.6)',4);
+    ctx.textAlign='left';font(25,800);txt(`${k===0&&count[i]>0?'👑 ':''}${g.sh>performance.now()?'🛡️':''}${g.name}`,x+18,y+20,'#fff','rgba(0,0,0,.6)',4);
     font(18,600);ctx.fillStyle='#d6dcff';ctx.fillText(`👥 ${members[i]}   🏆 ${wins[i]}`,x+18,y+41);
     ctx.textAlign='right';font(30,900);txt(`${Math.round(pct*100)}%`,x+TW-12,y+TH/2+1,'#fff','rgba(0,0,0,.6)',4);
   });
@@ -375,13 +385,13 @@ function drawMap(now){
     hexPath(c.x,c.y-4*f,(R-.7)*s);ctx.fillStyle=`rgb(${r+(255-r)*f|0},${gg+(255-gg)*f|0},${b+(255-b)*f|0})`;ctx.fill();}
   ctx.textAlign='center';
   REG.forEach((g,i)=>{const c=cells[g.capCell];if(!c)return;const lost=c.owner!==i;
-    font(26,400);ctx.fillText(lost?'⚔️':'🏰',c.x,c.y-2);
+    font(26,400);ctx.fillText(g.sh>now?'🛡️':lost?'⚔️':'🏰',c.x,c.y-2);
     font(21,800);txt(g.cap,c.x,c.y-28,lost?'#ffab91':'#fff','rgba(0,0,0,.8)',5)});
   if(phase==='play'){const left=(roundEnd-now)/1000;if(left<10&&left>0){font(300,900);ctx.globalAlpha=.35+.25*(left%1);txt(String(Math.ceil(left)),MC,MY+MH/2,'#fff','#000',12);ctx.globalAlpha=1}}
 }
 function drawBottom(){
   const y0=LAND?682:MY+MH+30;drawPodium(y0);
-  ctx.textAlign='left';ctx.textBaseline='middle';const FN=LAND?4:6;
+  ctx.textAlign='left';ctx.textBaseline='middle';const FN=LAND?4:5;
   feedL.slice(-FN).forEach((f,i)=>{const y=y0+(LAND?172:165)+i*42;ctx.fillStyle=f.col;ctx.beginPath();ctx.arc(PX+22,y,8,0,7);ctx.fill();
     const sz=fit(f.t,PW-60,27,600);txt(f.t,PX+42,y,'#fff','rgba(0,0,0,.6)',4)});
 }
@@ -404,6 +414,7 @@ function drawEnd(now,dt){
   fit(g.name.toUpperCase(),980,130,900);txt(g.name.toUpperCase(),W/2,860+EY,g.col,'#000',14);
   font(56,900);txt(`CÂȘTIGĂ RUNDA ${round}!`,W/2,960+EY,'#fff','#000',8);
   font(40,700);txt(`${Math.round(count[winner]/cells.length*100)}% din România · ${wins[winner]} ${wins[winner]===1?'victorie':'victorii'} în total`,W/2,1035+EY,'#ffe082','#000',6);
+  if(king){const kt=`👑 Regele cadourilor: ${king.nick} · ${king.rc} 🪙`;fit(kt,980,36,800);txt(kt,W/2,1250+EY,'#ffe082','#000',6)}
   if(top){const pt=`Patriotul rundei: ${top.nick} · ${Math.round(top.pts)} puncte`;fit(pt,980,38,700);txt(pt,W/2,1105+EY,'#fff','#000',6)}
   font(34,600);txt(`Runda următoare în ${Math.ceil((endUntil-now)/1000)}s — alege-ți regiunea!`,W/2,1190+EY,'#cfd8ff','#000',5);
 }
@@ -415,8 +426,9 @@ function frame(now){
   if(phase==='play'){processQueue();tickEvents(now);if(now>=roundEnd)endRound(now)}
   else if(now>=endUntil)newRound(now);
   for(const c of cells)if(c.flash>0)c.flash=Math.max(0,c.flash-dt*2.2);
-  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
-  drawHeader(now);drawHelp();drawBoard();drawMap(now);drawBottom();drawFx(now,dt);drawEvent(now);drawLikeGoal(now);
+  ctx.save();if(now<shakeT){const a=(shakeT-now)/700*14;ctx.translate((Math.random()-.5)*a,(Math.random()-.5)*a)}
+  ctx.fillStyle=bg;ctx.fillRect(-20,-20,W+40,H+40);
+  drawHeader(now);drawHelp();drawBoard();drawMap(now);drawBottom();drawFx(now,dt);drawEvent(now);drawLikeGoal(now);ctx.restore();
   if(phase==='play')drawBanner(now);else drawEnd(now,dt);
   if(wsState!=='none'){const map={on:['🟢 CONECTAT LA LIVE','#1b5e20'],wait:['🟡 Aștept TikTok… '+Math.max(0,Math.ceil((retryAt-now)/1000))+'s','#6d5300'],bad:['🔴 Cheie tik.tools greșită','#7f0000'],off:['🔴 Deconectat — reîncerc','#7f0000']};const [t,c]=map[wsState];font(24,800);const w=ctx.measureText(t).width+28;const by=LAND?24:170;rrect(W-w-20,by,w,40,20);ctx.fillStyle=c;ctx.fill();ctx.textAlign='left';ctx.textBaseline='middle';txt(t,W-w-6,by+21,'#fff')}
   requestAnimationFrame(frame);
