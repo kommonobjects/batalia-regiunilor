@@ -28,6 +28,7 @@ label{display:flex;gap:4px;align-items:center}
 <body>
 <div id="wrap">
 <canvas id="c"></canvas>
+<div id="ytw" style="position:fixed;left:0;bottom:0;width:200px;height:113px;opacity:0.01;pointer-events:none;overflow:hidden"><div id="yt"></div></div>
 <div id="ctl">
   <div class="row">
     <span>Simulator:</span>
@@ -47,6 +48,7 @@ label{display:flex;gap:4px;align-items:center}
   <div class="row">
     <button data-a="live" style="background:#c62828;border-color:#ff5252;font-weight:700">▶️ MOD LIVE</button>
     <label><input type="checkbox" id="demo"> Demo automat (boți)</label>
+    <button data-a="music">🎵 Muzică on/off</button>
     <button data-a="reset">🔄 Rundă nouă</button>
     <button data-a="tf">🔌 Conectează TikFinity</button>
   </div>
@@ -55,6 +57,11 @@ label{display:flex;gap:4px;align-items:center}
     <input id="ttUser" placeholder="user TikTok (fără @)" style="width:150px">
     <input id="ttKey" type="password" placeholder="API key" style="width:150px">
     <button data-a="tt">🔌 Salvează + conectează</button>
+  </div>
+  <div class="row">
+    <span>🎵 Playlist YouTube:</span>
+    <input id="ytList" placeholder="link playlist (gol = sârbe Ungureanu Band)" style="width:260px">
+    <button data-a="yt">Salvează playlist</button>
     <span id="st"></span>
   </div>
 </div>
@@ -350,16 +357,25 @@ document.getElementById('ctl').addEventListener('click',e=>{
   else if(a==='atac'){const u=tester();onChat(u.id,u.nick,'atac '+REG[+selTgt.value].alias[0])}
   else if(a==='reset')newRound(performance.now());
   else if(a==='live')enterLive();
+  else if(a==='music')music(!musicOn);
+  else if(a==='yt'){LS.set('br_yt',document.getElementById('ytList').value.trim());if(ytReady){yt.loadPlaylist({listType:'playlist',list:listId()});musicOn=true}}
   else if(a==='tf'){wsUrl='ws://localhost:21213/';wsName='TikFinity';tf()}
   else if(a==='tt'){LS.set('br_user',document.getElementById('ttUser').value.trim());const k=document.getElementById('ttKey').value.trim();if(k)LS.set('br_key',k);tt()}
 });
 document.getElementById('ttUser').value=LS.get('br_user');
+document.getElementById('ytList').value=LS.get('br_yt');
+const DEF_LIST='PLat5tuTlQgDZodvgB_PLBTBnMDuKj6TWx';
+function listId(){const v=LS.get('br_yt');if(!v)return DEF_LIST;const m=v.match(/list=([\w-]+)/);return m?m[1]:v}
+let yt=null,ytReady=false,musicOn=false;
+window.onYouTubeIframeAPIReady=()=>{yt=new YT.Player('yt',{width:200,height:113,playerVars:{listType:'playlist',list:listId(),playsinline:1,controls:0,loop:1,rel:0},events:{onReady:()=>{ytReady=true;try{yt.setShuffle(true);yt.setLoop(true);yt.setVolume(100)}catch(e){}},onError:()=>{try{yt.nextVideo()}catch(e){}}}})};
+{const sc=document.createElement('script');sc.src='https://www.youtube.com/iframe_api';document.head.appendChild(sc)}
+function music(on){musicOn=on;if(!ytReady)return;try{on?yt.playVideo():yt.pauseVideo()}catch(e){}}
 let wake=null;
 async function keepAwake(){try{if('wakeLock' in navigator)wake=await navigator.wakeLock.request('screen')}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&document.body.classList.contains('live'))keepAwake()});
 function enterLive(){
   document.body.classList.add('live');setDemo(false);users.clear();members.fill(0);wins.fill(0);feedL.length=0;round=0;newRound(performance.now());
-  keepAwake();
+  keepAwake();music(true);
   if(!ws||ws.readyState>1){if(!tt())feed('⚠️ Nu e conectat la LIVE — ieși din Mod LIVE și pune user + key','#ff8a80')}
 }
 function exitLive(){document.body.classList.remove('live');if(wake){try{wake.release()}catch(e){}wake=null}}
