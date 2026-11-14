@@ -99,7 +99,7 @@ REG.forEach(g=>{g.rgb=hexRgb(g.col);g.top=g.col;g.side=`rgb(${g.rgb.map(v=>v*.55
 
 /* ---------- Map: simplified outline of Romania (lon,lat) ---------- */
 const OUT=[[22.9,47.97],[23.9,47.98],[24.9,47.73],[25.6,47.93],[26.6,48.25],[27.2,47.8],[27.8,47.3],[28.1,46.95],[28.2,46.3],[28.1,45.6],[28.2,45.45],[28.7,45.25],[29.7,45.35],[29.65,44.85],[28.95,44.5],[28.6,43.74],[27.9,43.98],[27.0,44.1],[26.1,43.7],[25.0,43.68],[24.0,43.72],[23.3,43.85],[22.9,43.95],[22.6,44.2],[22.4,44.6],[22.0,44.5],[21.4,44.8],[21.4,45.2],[20.8,45.5],[20.3,46.1],[21.0,46.3],[21.5,46.7],[21.9,47.4],[22.3,47.75]];
-const K=0.695,MX=LAND?30:130,MW=LAND?1160:820,S=MW/((29.75-20.25)*K),MY=LAND?215:580,MH=4.7*S,MC=MX+MW/2;
+const K=0.695,MX=LAND?30:130,MW=LAND?1160:820,S=MW/((29.75-20.25)*K),MY=LAND?215:440,MH=4.7*S,MC=MX+MW/2;
 const px=lon=>MX+(lon-20.25)*K*S, py=lat=>MY+(48.35-lat)*S;
 function pip(x,y,P){let ins=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const[xi,yi]=P[i],[xj,yj]=P[j];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))ins=!ins}return ins}
 REG.forEach(g=>g.sp=g.seeds.map(([lo,la])=>[px(lo),py(la)]));
@@ -319,7 +319,7 @@ function tickEvents(now){
   const c=o[Math.random()*o.length|0];banner(c[0],c[1],c[2]);
 }
 function drawEvent(now){
-  const x=LAND?24:30,w=LAND?470:1020,h=LAND?150:128,y=LAND?86:356;
+  const x=LAND?24:30,w=LAND?470:1020,h=LAND?150:116,y=LAND?22:436;
   if(!ev){const s=Math.ceil((nextEv-now)/1000);if(!LAND||phase!=='play'||s>15||s<0)return;
     rrect(x,y,w,56,16);ctx.fillStyle='rgba(0,0,0,.5)';ctx.fill();ctx.textAlign='center';ctx.textBaseline='middle';font(26,800);txt(`⏳ Eveniment surpriză în ${s}s`,x+w/2,y+29,'#ffe082');return}
   const p=Math.max(0,(ev.until-now)/ev.dur),pulse=.5+.5*Math.sin(now/180);
@@ -362,10 +362,10 @@ function drawHeader(now){
   txt(pill,W/2,190+HY,'#fff');
 }
 function drawHelp(){
-  if(!LAND){drawGiftRow(30,244,1020,100);if(ev)return;ctx.textAlign='center';ctx.textBaseline='middle';font(24,700);txt('✍️ scrie regiunea ta  ·  ⚔️ atac + regiune  ·  ❤️ like-uri = teritoriu',W/2,362,'#e3e8ff','rgba(0,0,0,.6)',4);return}
+  if(!LAND){ctx.textAlign='center';ctx.textBaseline='middle';font(24,700);txt('✍️ scrie regiunea ta  ·  ⚔️ atac + regiune',W/2,212,'#e3e8ff','rgba(0,0,0,.6)',4);return}
   const HY0=215;rrect(PX,HY0,PW,128,18);ctx.fillStyle='rgba(0,0,0,.42)';ctx.fill();
   ctx.textAlign='left';let hs=28;font(hs,700);
-  const L=[['✍️','scrie ','regiunea ta',' · ⚔️ atac + regiune'],['❤️','','like-uri + mesaje',' = teritoriu pentru echipa ta']];
+  const L=[['✍️','scrie ','regiunea ta',' · ⚔️ atac + regiune']];
   const mw=Math.max(...L.map(l=>ctx.measureText(l[1]+l[2]+l[3]).width))+46;if(mw>PW-40){hs=Math.floor(28*(PW-40)/mw);font(hs,700)}
   L.forEach((l,i)=>{let x=PX+22;const y=HY0+34+i*38;ctx.fillStyle='#fff';ctx.fillText(l[0],x,y);x+=hs*1.65;
     ctx.fillStyle='#cfd8ff';ctx.fillText(l[1],x,y);x+=ctx.measureText(l[1]).width;
@@ -374,7 +374,7 @@ function drawHelp(){
 }
 function drawBoard(){
   const tot=cells.length,ord=[...Array(N).keys()].sort((a,b)=>count[b]-count[a]||wins[b]-wins[a]);
-  const NC=LAND?2:3,GX=15,TW=(PW-GX*(NC-1))/NC,TH=52,GY=8,X0=PX,Y0=LAND?358:386;
+  const NC=LAND?2:3,GX=15,TW=(PW-GX*(NC-1))/NC,TH=52,GY=8,X0=PX,Y0=LAND?358:240;
   ord.forEach((i,k)=>{
     const g=REG[i],x=X0+(k%NC)*(TW+GX),y=Y0+Math.floor(k/NC)*(TH+GY),pct=count[i]/tot;
     rrect(x,y,TW,TH,12);ctx.fillStyle='rgba(0,0,0,.5)';ctx.fill();
@@ -399,7 +399,7 @@ function drawMap(now){
 }
 function drawBottom(){
   const y0=LAND?682:MY+MH+30;drawPodium(y0);
-  ctx.textAlign='left';ctx.textBaseline='middle';const FN=LAND?3:0;if(LAND)drawGiftRow(PX,982,PW,88);ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.textAlign='left';ctx.textBaseline='middle';const FN=LAND?4:0;
   (FN?feedL.slice(-FN):[]).forEach((f,i)=>{const y=y0+(LAND?172:165)+i*42;ctx.fillStyle=f.col;ctx.beginPath();ctx.arc(PX+22,y,8,0,7);ctx.fill();
     const sz=fit(f.t,PW-60,27,600);txt(f.t,PX+42,y,'#fff','rgba(0,0,0,.6)',4)});
 }
@@ -436,7 +436,7 @@ function frame(now){
   for(const c of cells)if(c.flash>0)c.flash=Math.max(0,c.flash-dt*2.2);
   ctx.save();if(now<shakeT){const a=(shakeT-now)/700*14;ctx.translate((Math.random()-.5)*a,(Math.random()-.5)*a)}
   ctx.fillStyle=bg;ctx.fillRect(-20,-20,W+40,H+40);
-  drawHeader(now);drawHelp();drawBoard();drawMap(now);drawBottom();drawFx(now,dt);drawEvent(now);drawLikeGoal(now);ctx.restore();
+  drawHeader(now);drawHelp();drawBoard();drawMap(now);drawBottom();drawFx(now,dt);drawEvent(now);ctx.restore();
   if(phase==='play')drawBanner(now);else drawEnd(now,dt);
   if(wsState!=='none'){const map={on:['🟢 CONECTAT LA LIVE','#1b5e20'],wait:['🟡 Aștept TikTok… '+Math.max(0,Math.ceil((retryAt-now)/1000))+'s','#6d5300'],bad:['🔴 Cheie tik.tools greșită','#7f0000'],off:['🔴 Deconectat — reîncerc','#7f0000']};const [t,c]=map[wsState];font(24,800);const w=ctx.measureText(t).width+28;const by=LAND?24:135;rrect(W-w-20,by,w,40,20);ctx.fillStyle=c;ctx.fill();ctx.textAlign='left';ctx.textBaseline='middle';txt(t,W-w-6,by+21,'#fff')}
   requestAnimationFrame(frame);
