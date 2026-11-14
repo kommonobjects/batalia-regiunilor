@@ -329,14 +329,16 @@ function tt(){
   if(ws){wantWs=false;try{ws.close()}catch(e){}}
   tf();return true;
 }
-let wsAnnounced=false;
+let wsAnnounced=false;const noted=new Set();function note(t){t=t.slice(0,90);if(noted.has(t))return;noted.add(t);feed(t,'#ffd54f')}
 function tf(){
   wantWs=true;
   try{ws=new WebSocket(wsUrl)}catch(e){st.textContent=wsName+': conexiune refuzată';return}
   ws.onopen=()=>{st.textContent=wsName+' conectat ✅';if(!wsAnnounced){wsAnnounced=true;feed('🔌 Conectat la LIVE','#69f0ae')}};
-  ws.onclose=()=>{st.textContent=wsName+' deconectat — reîncerc…';if(wantWs)setTimeout(tf,4000)};
+  ws.onclose=e=>{const why=(e.code||'')+' '+(e.reason||'');st.textContent=wsName+' deconectat ('+why+') — reîncerc…';note('⚠️ tik.tools: '+why);if(wantWs)setTimeout(tf,5000)};
   ws.onerror=()=>{};
   ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}
+    if(!m.event&&(m.type||m.message)){note('ℹ️ tik.tools: '+(m.type||'')+' '+(m.message||m.reason||''));return}
+    if(m.event==='roomInfo'||m.event==='control'){const d=m.data||{};note('ℹ️ '+m.event+': '+JSON.stringify(d).slice(0,80));return}
     const ev=m.event,d=m.data||{},us=d.user||{},id=us.uniqueId||d.uniqueId||us.userId||d.userId||'anon',nick=us.nickname||d.nickname||id;
     if(ev==='chat')onChat(id,nick,d.comment);
     else if(ev==='gift'){if(d.giftType===1&&!d.repeatEnd)return;onGift(id,nick,(d.diamondCount||1)*(d.repeatCount||1),d.giftName)}
