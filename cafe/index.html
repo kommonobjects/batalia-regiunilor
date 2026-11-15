@@ -476,7 +476,7 @@ document.getElementById('ctl').addEventListener('click',e=>{const b=e.target.clo
   else if(a==='board')cabUntil=performance.now()+9000;else if(a==='reset')newNight(performance.now());else if(a==='live')enterLive();else if(a==='music')music(!musicOn);
   else if(a==='tt'){LS.set('br_user',document.getElementById('ttUser').value.trim());const k=document.getElementById('ttKey').value.replace(/[^A-Za-z0-9_\-]/g,'');if(k)LS.set('br_key',k);document.getElementById('ttKey').value='';tt()}});
 document.getElementById('ttUser').value=LS.get('br_user');
-const DEF_LIST=Q.get('music')||'PLI7Nu4tRK4Ihh6MwiglXwRLZ9lSu2eudF';
+const DEF_LIST=Q.get('music')||'PLo3pNg0eiPc-Fnz7l_hfjpiGq_mBN4Iz7';
 let yt=null,ytReady=false,musicOn=false;
 if(Q.get('music')!=='0'&&DEF_LIST){window.onYouTubeIframeAPIReady=()=>{yt=new YT.Player('yt',{width:200,height:113,playerVars:{listType:'playlist',list:DEF_LIST,playsinline:1,controls:0,loop:1,rel:0},events:{onReady:()=>{ytReady=true;setTimeout(buildCatalog,2500);try{yt.setShuffle(true);yt.setLoop(true);yt.setVolume(100);if(LIVE||document.body.classList.contains('live')){yt.playVideo();musicOn=true}}catch(e){}},onStateChange:e=>{if(e.data===0&&onSongEnd())return;if(musicOn&&(e.data===0||e.data===2)&&(LIVE||document.body.classList.contains('live'))){try{e.data===0?yt.nextVideo():yt.playVideo()}catch(_){}}},onError:()=>{try{yt.nextVideo()}catch(e){}}}})};
 {const sc=document.createElement('script');sc.src='https://www.youtube.com/iframe_api';document.head.appendChild(sc)}}
