@@ -110,13 +110,13 @@ const ITEMS=[[/\b(cafea|coffee|espresso)\b/,'☕',0],[/\b(ceai|tea)\b/,'🍵',1]
 const QUESTIONS=['Ce ți-e cel mai dor de acasă?','Care e cel mai frumos loc unde ai fost?','Ce mâncare ai comanda acum?','Ce melodie îți aduce aminte de cineva?','Ce te face să zâmbești azi?','Cafea sau ceai? Și de ce?','Ce ai face într-o zi liberă perfectă?','Ce sfat i-ai da celui de acum 5 ani?'];
 function onChat(id,nick,text){
   const u=U(id,nick),t=norm(text),now=performance.now();u.seen=now;seat(u);
-  const cl=clean(text);if(cl){u.say=short(cl,26);u.sayT=now;u.lastMsg=cl}
+  const cl=clean(text);u.chatT=now;const isCmd=/^\s*(@|pune\b|alta\b|next|skip|da\b|nu\b|dedic|melod|piesa|cantec|prezint|reflector|single|singur|divort|plec|secret|schimba)/.test(t);if(cl){if(!isCmd){u.say=short(cl,26);u.sayT=now}u.lastMsg=cl}
   const p=findPlace(t);if(p&&!u.place){u.place=p;placeCnt[p[1]]=(placeCnt[p[1]]||0)+1;pop(u,p[0]+' '+p[1])}
   for(const [re,e,k] of ITEMS)if(re.test(t)){u.item=e;u.itemT=now;served[k]++;break}
   const m=/@([^\s@]+)/.exec(String(text||''));if(m){const q=norm(m[1]);const tg=[...users.values()].find(o=>o!==u&&(norm(o.nick).replace(/\s/g,'').startsWith(q)||norm(o.id).startsWith(q)));
     if(tg){u.atTarget=tg;u.atT=now}
     if(tg&&!(u.table&&u.table===tg.table)){if(tg.invite===u&&now-(tg.inviteT||0)<180000)pairUp(tg,u,now);else{u.invite=tg;u.inviteT=now;pop(u,'💌 → '+short(tg.nick,10))}}}
-  if(question&&now-question.t0<90000&&cl.length>3&&!m){notes.push({u,txt:short(cl,40),t0:now});if(notes.length>6)notes.shift()}
+  if(question&&now-question.t0<90000&&cl.length>3&&!m&&!isCmd){notes.push({u,txt:short(cl,40),t0:now});if(notes.length>6)notes.shift()}
   if(roulette&&(u===roulette.a||u===roulette.b)){if(yes(t)){u===roulette.a?roulette.ya=true:roulette.yb=true;pop(u,'✅ DA');if(roulette.ya&&roulette.yb){const r=roulette;roulette=null;pairUp(r.a,r.b,now)}}else if(no(t)){const r=roulette;endRoulette(['💔 '+short(u.nick,14)+' A REFUZAT 😂','ruleta se învârte din nou curând'],'#90a4ae');sfx('hit')}}
   if(proposal&&u===proposal.b&&now-proposal.t0<90000){if(yes(t))acceptProposal(now);else if(no(t)){const p=proposal;proposal=null;sfx('hit');shakeT=now+500;banner('💔 A SPUS NU! 😱',`${p.b.nick} l-a refuzat pe ${p.a.nick} 😂`,'#90a4ae',true)}}
   if(/\bdivort/.test(t)&&u.table){const T=u.table,o=T.a===u?T.b:T.a;T.a=null;T.b=null;T.married=false;u.table=null;if(o){o.table=null;seat(o)}seat(u);pop(u,'💔 divorț');sfx('hit');banner('💔 DIVORȚ LA CAFENEA 😂',`${u.nick} pleacă de la masă`,'#90a4ae')}
@@ -152,7 +152,7 @@ function burstAt(x,y,n){for(let i=0;i<n&&hearts_.length<200;i++)hearts_.push({x,
 let voiceQ=[],lastSay=0;function say(t){try{if(!('speechSynthesis' in window)||Q.get('tts')==='0')return;const n=performance.now();if(n-lastSay<2500||speechSynthesis.speaking){if(voiceQ.length<3)voiceQ.push(t);return}lastSay=n;const m=new SpeechSynthesisUtterance(t);m.lang='ro-RO';const v=speechSynthesis.getVoices().find(v=>/^ro/i.test(v.lang));if(v)m.voice=v;m.onend=()=>{const nx=voiceQ.shift();if(nx)setTimeout(()=>say(nx),300)};speechSynthesis.speak(m)}catch(e){}}
 function onGift(id,nick,coins,gname,unit,gpic){
   const u=U(id,nick),now=performance.now();u.seen=now;seat(u);unit=Math.max(1,Math.round(unit||coins||1));coins=Math.max(1,Math.round(coins||unit));
-  const ki=gkind(gname,unit),K=GK[ki];giftCnt[ki]++;u.gifts=(u.gifts||0)+1;u.coins=(u.coins||0)+coins;
+  const ki=gkind(gname,unit),K=GK[ki];giftCnt[ki]++;u.gifts=(u.gifts||0)+1;u.coins=(u.coins||0)+coins;const vp0=vipPair();u.hc=(u.hc||0)+coins;
   u.combo=(now-(u.lastGift||0)<15000)?(u.combo||1)+1:1;u.lastGift=now;if(u.combo>=2)pop(u,'🔥 combo x'+u.combo);
   const sec0=/secret/i.test(u.lastMsg||'')&&u.atTarget&&now-(u.atT||0)<180000;if(!String(id).startsWith('bot_')&&!sec0)say(`Mulțumim, ${u.nick}!`);if(!sec0)feed(`${K.e} ${u.nick} · ${K.l}`,u.col);const[x,y]=seatPos(u);
   const tg=(u.atTarget&&now-(u.atT||0)<180000&&u.atTarget!==u)?u.atTarget:(u.table?(u.table.a===u?u.table.b:u.table.a):null);
@@ -160,11 +160,12 @@ function onGift(id,nick,coins,gname,unit,gpic){
   if(tg&&coins>=99&&!proposal&&!(tg.table&&tg.table.married&&tg.table===u.table)){proposal={a:u,b:tg,t0:now};sfx('win');shakeT=now+400;if(!String(id).startsWith('bot_'))setTimeout(()=>say(`${u.nick} o cere pe ${tg.nick}! Răspunde da sau nu!`),900)}
   if(tg&&['trandafir','cafea','desert','geam'].includes(K.k)){const[tx,ty]=seatPos(tg);
     const from=secret?'de la un admirator secret 🕵️':`de la ${u.nick}`;
-    const prevTop=topAdmirer(tg);tg.recv=(tg.recv||0)+coins;tg.adm=tg.adm||{};tg.adm[u.id]=(tg.adm[u.id]||0)+coins;u.given=(u.given||0)+coins;
+    const prevTop=topAdmirer(tg);tg.recv=(tg.recv||0)+coins;tg.hr=(tg.hr||0)+coins;tg.adm=tg.adm||{};tg.adm[u.id]=(tg.adm[u.id]||0)+coins;u.given=(u.given||0)+coins;u.hg=(u.hg||0)+coins;
+    tg.admT=tg.admT||{};tg.admT[u.id]=now;if(!secret){if(duel&&duel.b===tg&&now<duel.end){if(u!==duel.a1&&u!==duel.a2){duel.a2=u}duel.end=Math.max(duel.end,now+20000)}else{const rv=Object.keys(tg.admT).filter(k=>k!==String(u.id)&&now-tg.admT[k]<120000).map(k=>users.get(k)).filter(Boolean);if(rv.length){duel={b:tg,a1:rv[0],a2:u,t0:now,end:now+60000};banner('🥊 DUEL PENTRU '+short(tg.nick,12).toUpperCase(),`${rv[0].nick} vs ${u.nick} · 60 de secunde`,'#ff7043',true);sfx('big')}}}
     peacock={a:secret?{nick:'admirator secret',col:'#455a64'}:u,b:tg,t0:now,dur:Math.min(10000,3500+coins*60),coins,e:K.e};
     const nt=topAdmirer(tg);if(!secret&&nt&&nt.u===u&&(!prevTop||prevTop.u!==u)&&tg.recv>=5){setTimeout(()=>banner(`👑 ADMIRATORUL #1 AL LUI ${short(tg.nick,12).toUpperCase()}`,`${u.nick} · ❤️ ${nt.c}`,'#ffd54f',true),3600)}
-    const nv=topBy('recv');if(nv&&nv!==vedeta){vedeta=nv;setTimeout(()=>{banner('⭐ VEDETA SERII',`${nv.nick} · cea mai admirată persoană din cafenea`,'#ffd54f',true);if(!String(nv.id).startsWith('bot_'))say(`${nv.nick} este vedeta serii!`)},4200)}
-    const nc=topBy('given');if(nc&&nc!==cavaler&&!secret){cavaler=nc;setTimeout(()=>banner('🎩 CAVALERUL SERII',`${nc.nick} · cel mai generos din cafenea`,'#ffcc80',true),5000)}
+    const nv=topBy('hr');if(nv&&nv!==vedeta){vedeta=nv;setTimeout(()=>{banner('⭐ VEDETA SERII',`${nv.nick} · cea mai admirată persoană din cafenea`,'#ffd54f',true);if(!String(nv.id).startsWith('bot_'))say(`${nv.nick} este vedeta serii!`)},4200)}
+    const nc=topBy('hg');if(nc&&nc!==cavaler&&!secret){cavaler=nc;setTimeout(()=>banner('🎩 CAVALERUL SERII',`${nc.nick} · cel mai generos din cafenea`,'#ffcc80',true),5000)}
     if(K.k==='trandafir'){tg.rose=(tg.rose||0)+1;burstAt(tx,ty,14);0}
     else if(K.k==='cafea'){tg.item='☕';tg.itemT=now;0}
     else if(K.k==='desert'){tg.item='🍰';tg.itemT=now+60000;0}
@@ -180,33 +181,38 @@ function onGift(id,nick,coins,gname,unit,gpic){
   else if(K.k==='runda'){round={u,t0:now};users.forEach(o=>{if(o.stool!=null||o.table){o.item='🥂';o.itemT=now}});sfx('win');banner('🥂 RUNDĂ PENTRU TOATĂ CAFENEAUA',`din partea lui ${u.nick}`,'#ffd54f',true)}
   /* weekly patrons */
   try{const wk=weekKey(),w=JSON.parse(localStorage.getItem('cf_week')||'{}');if(w.k!==wk){w.k=wk;w.t={}}if(!String(id).startsWith('bot_')||!LIVE){const e=w.t[id]||{nick:u.nick,pic:u.pic,c:0};e.c+=coins;e.nick=u.nick;e.pic=u.pic||e.pic;w.t[id]=e}localStorage.setItem('cf_week',JSON.stringify(w))}catch(e){}
-  if(coins>=1000||(u.combo>=5&&coins>=100)){takeover={u,t0:now};shakeT=now+600}
-  let top=null;users.forEach(o=>{if(o.coins&&(!top||o.coins>top.coins))top=o});
-  if(top&&top!==patron){const was=patron;patron=top;banner('👑 '+(was?'NOUL ':'')+'PATRON AL CAFENELEI',`${top.nick} · suporterul #1 al serii`,'#ffd54f',true);if(!String(top.id).startsWith('bot_'))setTimeout(()=>say(`${top.nick} este patronul cafenelei!`),2600)}
+  if(coins>=299||(u.combo>=5&&coins>=100)){takeover={u,t0:now};shakeT=now+600;for(let k=0;k<14;k++)fw.push({x:120+Math.random()*840,y:300+Math.random()*250,t0:now+k*350,col:COLS[k%10]})}
+  else if(coins>=99){shakeT=now+400;for(let k=0;k<6;k++)fw.push({x:150+Math.random()*780,y:320+Math.random()*200,t0:now+k*300,col:COLS[k%10]});if(!String(id).startsWith('bot_'))setTimeout(()=>say(`Uau! ${u.nick}, mulțumim!`),1500)}
+  {const vp1=vipPair();const inn=vp1.find(o=>!vp0.includes(o)),out=vp0.find(o=>!vp1.includes(o));if(inn===u&&out){setTimeout(()=>banner('🥊 '+short(u.nick,12).toUpperCase()+' A LUAT CANAPEAUA VIP',`${out.nick} coboară la bar · cine o ia înapoi?`,'#ff7043',true),1800);out.say='😤 revin!';out.sayT=now}else if(inn===u){setTimeout(()=>pop(u,'🛋️ VIP'),600)}}
+  let top=null;users.forEach(o=>{if(o.hc&&(!top||o.hc>top.hc))top=o});
+  if(top&&top!==patron){const was=patron;patron=top;banner('👑 '+(was?'NOUL ':'')+'PATRON AL CAFENELEI',`${top.nick} · suporterul #1 al orei`,'#ffd54f',true);if(!String(top.id).startsWith('bot_'))setTimeout(()=>say(`${top.nick} este patronul cafenelei!`),2600)}
 }
 /* ---------- Jukebox: dedicate a song ---------- */
 const catalog=[],songQ=[];let freeDed=null,nowSong='',songDed=null,lastReq=new Map();
 function buildCatalog(){try{const ids=(yt&&yt.getPlaylist&&yt.getPlaylist())||[];ids.slice(0,100).forEach((id,i)=>{fetch('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+id)).then(r=>r.json()).then(j=>{catalog[i]={i,title:j.title,n:norm(j.title)}}).catch(()=>{})})}catch(e){}}
-function findSong(words){let best=null,bs=0;catalog.forEach(c=>{if(!c)return;let s=0;words.forEach(w=>{if(w.length>=3&&c.n.includes(w))s+=w.length});if(s>bs){bs=s;best=c}});return bs>=4?best:null}
+function lev(a,b){const m=[];for(let i=0;i<=a.length;i++){m[i]=[i];for(let j=1;j<=b.length;j++)m[i][j]=i?Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1)):j}return m[a.length][b.length]}
+function findSong(words){let best=null,bs=0;catalog.forEach(c=>{if(!c)return;let s=0;const cw=c.n.split(/[^a-z0-9]+/);words.forEach(w=>{if(w.length<3)return;if(c.n.includes(w))s+=w.length;else if(w.length>=5&&cw.some(x=>Math.abs(x.length-w.length)<=2&&lev(x,w)<=2))s+=w.length-1});if(s>bs){bs=s;best=c}});return bs>=4?best:null}
 function playSong(req,now){try{yt.playVideoAt(req.song.i);songDed={u:req.u,to:req.to,title:req.song.title,t0:now}}catch(e){}}
 let lastSwitch=0,songStart=performance.now();
-function skipSong(u,now,why){if(now-lastSwitch<30000){pop(u,'⏳ piesa nouă în '+Math.ceil((30000-(now-lastSwitch))/1000)+'s');return}lastSwitch=now;songStart=now;const r=songQ.shift();try{if(r)playSong(r,now);else{songDed=null;const n=catalog.filter(Boolean).length;if(n>1){let k;do{k=catalog.filter(Boolean)[Math.random()*n|0].i}while(n>1&&yt.getPlaylistIndex&&k===yt.getPlaylistIndex());yt.playVideoAt(k)}else yt.nextVideo()}}catch(e){}
+function skipSong(u,now,why){if(now-lastSwitch<30000)return;lastSwitch=now;songStart=now;const r=songQ.shift();try{if(r)playSong(r,now);else{songDed=null;const n=catalog.filter(Boolean).length;if(n>1){let k;do{k=catalog.filter(Boolean)[Math.random()*n|0].i}while(n>1&&yt.getPlaylistIndex&&k===yt.getPlaylistIndex());yt.playVideoAt(k)}else yt.nextVideo()}}catch(e){}
   pop(u,'⏭️ piesă nouă');feed(`⏭️ ${u.nick} ${why||'a schimbat piesa'}`,'#ce93d8');sfx('big')}
 function onSongEnd(){songStart=performance.now();const r=songQ.shift();if(r){playSong(r,performance.now());return true}songDed=null;return false}
-let vedeta=null,cavaler=null,peacock=null,spotQ=[],spot=null,nextSpot=0;
+let vedeta=null,cavaler=null,peacock=null,spotQ=[],spot=null,nextSpot=0,duel=null,hourK=new Date().getHours();
+function vipBest(){const vp=vipPair(),n=performance.now();let o3=0;users.forEach(o=>{if(!vp.includes(o)&&o.hc&&n-(o.seen||0)<600000&&o.hc>o3)o3=o.hc});return{vp,need:vp.length<2?1:Math.max(1,vp[1].hc-o3+1)}}
+function hourReset(){users.forEach(o=>{o.hc=0;o.hr=0;o.hg=0});patron=null;vedeta=null;cavaler=null;duel=null;banner('⏰ ORĂ NOUĂ LA CAFENEA','titlurile se resetează · cine e noul patron? 👑','#ffd54f',true);sfx('big')}
 const ICE=['Ce ați comanda la prima întâlnire?','Mare sau munte?','Cel mai frumos oraș în care ați fost?','Ce melodie vă descrie seara asta?','Dimineața: cafea sau ceai?','Care e cea mai bună mâncare românească?','Ce ați face într-o zi liberă împreună?','Film sau plimbare?'];
 function topBy(k){let b=null;users.forEach(o=>{if(o[k]&&(!b||o[k]>b[k]))b=o});return b}
 function topAdmirer(u){if(!u.adm)return null;let b=null,bc=0;for(const id in u.adm)if(u.adm[id]>bc){bc=u.adm[id];b=id}return b?{u:users.get(b),c:bc}:null}
 let takeover=null,coupleNames=null,roulette=null,proposal=null,marriedNames=null,nextRoul=performance.now()+90000,nextRoll=performance.now()+150000;
 const yes=t=>/\b(da|yes|accept|vreau|sigur)\b/.test(t),no=t=>/\b(nu|no|refuz)\b/.test(t);
-function startRoulette(now){let pool=STOOLS.map(s=>s.u).filter(u=>u&&now-(u.seen||0)<120000&&!u.table&&!u.taken);const sg=pool.filter(u=>u.single);if(sg.length>=2)pool=sg;if(pool.length<2)return;const a=pool.splice(Math.random()*pool.length|0,1)[0],b=pool[Math.random()*pool.length|0];
+function startRoulette(now){let pool=STOOLS.map(s=>s.u).filter(u=>u&&now-(u.chatT||0)<180000&&!u.table&&!u.taken);const sg=pool.filter(u=>u.single);if(sg.length>=2)pool=sg;if(pool.length<2)return;const a=pool.splice(Math.random()*pool.length|0,1)[0],b=pool[Math.random()*pool.length|0];
   roulette={a,b,t0:now,ya:false,yb:false};sfx('event');if(!String(a.id).startsWith('bot_'))say(`Ruleta dragostei: ${a.nick} și ${b.nick}!`)}
 function endRoulette(msg,col){banner(msg[0],msg[1],col);roulette=null}
 function flameLv(T){return Math.min(5,1+Math.floor((T.flame||0)/2))}
 function weekKey(){const d=new Date();const day=(d.getDay()+6)%7;d.setHours(0,0,0,0);d.setDate(d.getDate()-day);return d.toISOString().slice(0,10)}
 function weekTop(){try{const w=JSON.parse(localStorage.getItem('cf_week')||'{}');if(w.k!==weekKey())return[];return Object.values(w.t||{}).sort((a,b)=>b.c-a.c).slice(0,5)}catch(e){return[]}}
-function vipPair(){const n=performance.now();return[...users.values()].filter(o=>o.coins&&n-(o.seen||0)<600000).sort((a,b)=>b.coins-a.coins).slice(0,2)}
-function pop(u,text){if(pops.length>=9)pops.shift();const[x1,y1]=seatPos(u);pops.push({u,text,col:u.col,x0:100+880*Math.random(),y0:1250,x1,y1:y1-40,t0:performance.now()})}
+function vipPair(){const n=performance.now();return[...users.values()].filter(o=>o.hc&&n-(o.seen||0)<600000).sort((a,b)=>b.hc-a.hc).slice(0,2)}
+function pop(u,text){if(pops.length>=4)pops.shift();const[x1,y1]=seatPos(u);pops.push({u,text,col:u.col,x0:100+880*Math.random(),y0:1250,x1,y1:y1-40,t0:performance.now()})}
 function acceptProposal(now){const p=proposal;proposal=null;if(!(p.a.table&&p.a.table===p.b.table))pairUp(p.a,p.b,now);const T=p.a.table;if(T){T.married=true;T.flame=10}marriedNames=[p.a.nick,p.b.nick];
   sfx('win');shakeT=now+600;for(let k=0;k<12;k++)fw.push({x:120+Math.random()*840,y:300+Math.random()*200,t0:now+k*300,col:COLS[k%10]});burstAt(540,900,80);banner('👰🤵 MIRII SERII!',`${p.a.nick} & ${p.b.nick} 💍`,'#ffd54f',true);if(!String(p.a.id).startsWith('bot_'))setTimeout(()=>say(`Casă de piatră, ${p.a.nick} și ${p.b.nick}!`),1500)}
 function newNight(now){coupleOfNight=null;marriedNames=null;const T=(now-nightStart)/1000;if(nightStart&&T>20){const f=Math.max(.5,Math.min(3,420/T));for(let i=0;i<3;i++)GOALS[i]=Math.max(100,Math.round(GOALS[i]*f/50)*50)}nightStart=now;night++;magic=0;stage=0;finaleUntil=0;firstIn=null;notes.length=0;
@@ -271,8 +277,7 @@ function drawWorld(now,dt){
   RECVTOP=[...users.values()].filter(o=>o.recv).sort((a,b)=>b.recv-a.recv).slice(0,6);
   drawBubbles(now);
   drawFx(now,dt);
-  if(dedic)drawDedication(now);else if(spot)drawSpot(now);
-  if(peacock)drawPeacock(now);
+  if(roulette||proposal){}else if(dedic)drawDedication(now);else if(peacock)drawPeacock(now);else if(duel)drawDuel(now);else if(spot)drawSpot(now);
   if(freeDed)drawFreeDed(now);
   if(roulette)drawRoulette(now);
   if(proposal)drawProposal(now);
@@ -285,7 +290,7 @@ function drawVIP(now){const {x,y}=VIP,vp=vipPair();
   font(26,400);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🍾',x,y);
   if(vp[0])drawPerson(vp[0],x-80,y-44,now,36);if(vp[1])drawPerson(vp[1],x+80,y-44,now,36);
   rrect(x-70,y-118,140,30,15);ctx.fillStyle='rgba(60,30,0,.85)';ctx.fill();ctx.strokeStyle='#ffd54f';ctx.lineWidth=2;ctx.stroke();font(17,900);txt('🛋️ MASA VIP',x,y-103,'#ffd54f');
-  if(!vp.length){font(15,800);ctx.globalAlpha=.8;txt('rezervată pentru suporterii serii',x,y+56,'#ffe0b2','rgba(0,0,0,.6)',4);ctx.globalAlpha=1}}
+  {const vb=vipBest();font(16,900);const t=vb.vp.length<2?'🛋️ loc liber pe canapea · orice cadou':'🥊 '+vb.need+' 🪙 ca să iei locul lui '+short(vb.vp[1].nick,10);const w=ctx.measureText(t).width+24;rrect(x-w/2,y+44,w,26,13);ctx.fillStyle='rgba(120,20,0,.85)';ctx.fill();txt(t,x,y+57,'#ffe0b2')}}
 function drawTable(T,now){const {x,y}=T,on=!!T.a;
   ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(x,y+58,92,18,0,0,7);ctx.fill();
   ctx.fillStyle='#3e2416';ctx.fillRect(x-5,y+8,10,50);
@@ -312,8 +317,8 @@ function drawPerson(u,x,y,now,r){if(u===vedeta){ctx.save();const g=ctx.createRad
   if(u===vedeta){font(22,400);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⭐',x,y-r-22)}
   if(u.recv&&RECVTOP.includes(u)){const ta=topAdmirer(u);if(ta&&ta.u){const t='❤️'+u.recv+' · 👑'+short(ta.u.nick,7);font(13,900);const w=ctx.measureText(t).width+12;rrect(x-w/2,y+r*1.9,w,20,10);ctx.fillStyle='rgba(120,0,40,.85)';ctx.fill();ctx.textAlign='center';ctx.textBaseline='middle';txt(t,x,y+r*1.9+10,'#ffe0e6')}}}
 let RECVTOP=[];
-function drawBubbles(now){const ppl=[...users.values()].filter(u=>u.say&&now-u.sayT<5000&&(u.stool!=null||u.table)).sort((a,b)=>b.sayT-a.sayT).slice(0,4);
-  ppl.forEach(u=>{const[x,y]=seatPos(u);font(20,800);const w=ctx.measureText(u.say).width+22,by=y-56;ctx.globalAlpha=Math.min(1,(5000-(now-u.sayT))/400);ctx.textAlign='center';ctx.textBaseline='middle';
+function drawBubbles(now){const ppl=[...users.values()].filter(u=>u.say&&now-u.sayT<5000&&(u.stool!=null||u.table)).sort((a,b)=>b.sayT-a.sayT);const drawn=[];
+  ppl.forEach(u=>{const[x,y]=seatPos(u);if(drawn.length>=3||drawn.some(([px,py])=>Math.abs(px-x)<200&&Math.abs(py-y)<60))return;drawn.push([x,y]);font(20,800);const w=ctx.measureText(u.say).width+22,by=y-56;ctx.globalAlpha=Math.min(1,(5000-(now-u.sayT))/400);ctx.textAlign='center';ctx.textBaseline='middle';
     rrect(x-w/2,by-19,w,38,17);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle=u.col;ctx.lineWidth=3;ctx.stroke();ctx.beginPath();ctx.moveTo(x-7,by+18);ctx.lineTo(x,by+30);ctx.lineTo(x+7,by+18);ctx.fillStyle='#fff';ctx.fill();txt(u.say,x,by+1,'#3e2723');ctx.globalAlpha=1})}
 function drawBoards(now){
   /* corkboard: Gândul serii */
@@ -332,7 +337,7 @@ function drawBoards(now){
 function wrap(t,x,y,w,lh,max){const ws=String(t).split(' ');let line='',n=0;for(const wd of ws){const tt=line?line+' '+wd:wd;if(ctx.measureText(tt).width>w&&line){ctx.fillText(line,x,y+n*lh);n++;line=wd;if(n>=max)return}else line=tt}if(line&&n<max)ctx.fillText(line,x,y+n*lh)}
 function drawFreeDed(now){const f=freeDed,dur=f.ice?10000:7000;if(now-f.t0>dur)return;const a=Math.min(1,(now-f.t0)/300,(dur-(now-f.t0))/300);ctx.save();ctx.globalAlpha=a;const cx=540,cy=1235;font(22,800);const t=f.ice?`${short(f.u.nick,10)} & ${short(f.to.nick,10)} · ${f.msg}`:`💌 ${short(f.u.nick,12)}${f.to?' → '+short(f.to.nick,12):''}: ${f.msg}`;fit(t,900,22,800);const w=Math.min(960,ctx.measureText(t).width+40);
   rrect(cx-w/2,cy-24,w,48,24);ctx.fillStyle='rgba(74,20,140,.92)';ctx.fill();ctx.strokeStyle='#ffd54f';ctx.lineWidth=2;ctx.stroke();ctx.textAlign='center';ctx.textBaseline='middle';txt(t,cx,cy+1,'#fff');ctx.restore()}
-function drawPeacock(now){const p=peacock,q=(now-p.t0)/p.dur;if(q>1){peacock=null;return}const a=Math.min(1,q*p.dur/300,(1-q)*p.dur/300),cx=540,cy=900;ctx.save();ctx.globalAlpha=a;
+function drawPeacock(now){const p=peacock,q=(now-p.t0)/p.dur;if(q>1){peacock=null;return}const a=Math.min(1,q*p.dur/300,(1-q)*p.dur/300),cx=540,cy=600;ctx.save();ctx.globalAlpha=a;ctx.translate(cx,cy);ctx.scale(.86,.86);ctx.translate(-cx,-cy);
   rrect(cx-460,cy-150,920,300,34);const g=ctx.createLinearGradient(0,cy-150,0,cy+150);g.addColorStop(0,'#1b5e20');g.addColorStop(.5,'#00695c');g.addColorStop(1,'#283593');ctx.fillStyle=g;ctx.fill();ctx.lineWidth=6;ctx.strokeStyle='#ffd54f';ctx.stroke();
   /* peacock fan */
   ctx.save();ctx.translate(cx,cy+120);for(let k=0;k<13;k++){const an=-Math.PI+k*Math.PI/12,len=150+Math.sin(now/200+k)*10;ctx.strokeStyle='rgba(0,200,180,.35)';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(an)*len*2.4,Math.sin(an)*len);ctx.stroke();ctx.fillStyle='rgba(30,60,200,.5)';ctx.beginPath();ctx.arc(Math.cos(an)*len*2.4,Math.sin(an)*len,10,0,7);ctx.fill()}ctx.restore();
@@ -340,13 +345,19 @@ function drawPeacock(now){const p=peacock,q=(now-p.t0)/p.dur;if(q>1){peacock=nul
   if(p.a.id)avatar(p.a,cx-250,cy,64,'#ffd54f');else{font(80,400);ctx.fillText('🕵️',cx-250,cy)}avatar(p.b,cx+250,cy,64,'#f48fb1');
   font(70,400);ctx.fillText(p.e,cx,cy-6);font(24,900);txt(short(p.b.nick,16),cx+250,cy+90,'#fff');if(p.a.id)txt(short(p.a.nick,16),cx-250,cy+90,'#fff');
   if(p.coins>=10){for(let k=0;k<(p.coins>=100?40:14);k++){const xx=cx-440+((k*97+now/4)%880),yy=cy-140+((k*53+now/(p.coins>=100?3:6))%280);ctx.fillStyle=p.coins>=100?'#ffd54f':'#fff';ctx.globalAlpha=a*.8;ctx.beginPath();ctx.arc(xx,yy,p.coins>=100?3.5:2.5,0,7);ctx.fill()}}ctx.restore()}
+function drawDuel(now){const d=duel,a=Math.min(1,(now-d.t0)/300,(d.end-now)/300);if(a<=0)return;const c1=(d.b.adm||{})[d.a1.id]||0,c2=(d.b.adm||{})[d.a2.id]||0;ctx.save();ctx.globalAlpha=a;
+  rrect(150,470,780,260,22);const g=ctx.createLinearGradient(150,0,930,0);g.addColorStop(0,'#b71c1c');g.addColorStop(.5,'#311b92');g.addColorStop(1,'#0d47a1');ctx.fillStyle=g;ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#ffd54f';ctx.stroke();
+  ctx.textAlign='center';ctx.textBaseline='middle';font(26,900);txt('🥊 DUEL PENTRU '+short(d.b.nick,14).toUpperCase()+' · '+Math.ceil((d.end-now)/1000)+'s',540,500,'#ffd54f');
+  avatar(d.a1,270,600,58,c1>=c2?'#ffd54f':'#fff');avatar(d.b,540,600,46,'#f48fb1');avatar(d.a2,810,600,58,c2>c1?'#ffd54f':'#fff');
+  font(24,900);txt(short(d.a1.nick,12),270,680,'#fff');txt(short(d.a2.nick,12),810,680,'#fff');font(30,900);txt('❤️ '+c1,400,600,'#fff');txt('❤️ '+c2,680,600,'#fff');
+  const tot=Math.max(1,c1+c2);rrect(200,708,680,14,7);ctx.fillStyle='#0d47a1';ctx.fill();rrect(200,708,680*c1/tot,14,7);ctx.fillStyle='#e53935';ctx.fill();ctx.restore()}
 function drawSpot(now){const s=spot,q=(now-s.t0)/15000;if(q>1){spot=null;return}const a=Math.min(1,q*50,(1-q)*50);ctx.save();ctx.globalAlpha=a;
   rrect(150,470,780,260,22);const g=ctx.createLinearGradient(0,470,0,730);g.addColorStop(0,'#263238');g.addColorStop(1,'#37474f');ctx.fillStyle=g;ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#fff59d';ctx.stroke();
   const sg=ctx.createRadialGradient(260,600,10,260,600,180);sg.addColorStop(0,'rgba(255,250,200,.5)');sg.addColorStop(1,'rgba(255,250,200,0)');ctx.fillStyle=sg;ctx.fillRect(150,470,400,260);
   ctx.textAlign='center';ctx.textBaseline='middle';font(24,900);txt('🎤 ÎN REFLECTOR',540,500,'#fff59d');avatar(s.u,260,610,70,'#fff59d');ctx.textAlign='left';font(34,900);txt(short(s.u.nick,16),360,570,'#fff');
   font(24,800);txt((s.u.place?s.u.place[0]+' '+s.u.place[1]:'')+(s.u.single?'  💚 single':''),360,615,'#ffe082');font(24,700);ctx.fillStyle='#eceff1';wrap(s.u.lastMsg?'„'+short(s.u.lastMsg,60)+'”':'salut tuturor! 👋',360,660,540,30,2);ctx.restore()}
 function drawRoulette(now){const r=roulette,q=(now-r.t0)/60000;if(q>1){endRoulette(['⏳ RULETA S-A OPRIT','poate data viitoare 😉'],'#90a4ae');return}
-  const cx=540,cy=900;ctx.save();ctx.globalAlpha=Math.min(1,(now-r.t0)/300);rrect(cx-420,cy-120,840,240,30);const g=ctx.createLinearGradient(0,cy-120,0,cy+120);g.addColorStop(0,'#880e4f');g.addColorStop(1,'#4a148c');ctx.fillStyle=g;ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#ffd54f';ctx.stroke();
+  const cx=540,cy=600;ctx.save();ctx.globalAlpha=Math.min(1,(now-r.t0)/300);rrect(cx-420,cy-120,840,240,30);const g=ctx.createLinearGradient(0,cy-120,0,cy+120);g.addColorStop(0,'#880e4f');g.addColorStop(1,'#4a148c');ctx.fillStyle=g;ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#ffd54f';ctx.stroke();
   ctx.textAlign='center';ctx.textBaseline='middle';font(30,900);txt('🎲 RULETA DRAGOSTEI',cx,cy-88,'#ffd54f');
   [[r.a,r.ya,-1],[r.b,r.yb,1]].forEach(([u,y,s])=>{const x=cx+s*230;avatar(u,x,cy-6,52,y?'#69f0ae':'#fff');font(22,900);txt(short(u.nick,14),x,cy+68,'#fff');font(28,400);ctx.fillText(y?'✅':'❔',x+48,cy-46)});
   font(46,400);ctx.fillText('☕',cx,cy-10);font(22,800);txt('o cafea împreună? scrieți DA 💞',cx,cy+64,'#ffe0b2');
@@ -405,13 +416,13 @@ function drawHeader(now){
     ctx.textAlign='left';font(22,900);txt('💛 Top',cx-sw/2+22,sy+1,'#ffd54f');sup.forEach((p,i)=>{const x=cx-sw/2+120+i*230;avatar(p,x,sy,20,'#ffd54f');font(21,900);txt(['🥇','🥈','🥉'][i]+' '+short(p.nick,9),x+28,sy+1,'#fff')});ctx.textAlign='center'}
   if(ytReady&&!(now%3000<20)){}try{if(ytReady&&yt.getVideoData)nowSong=(yt.getVideoData().title)||nowSong}catch(e){}
   if(nowSong){const sy=735,help=false,t2='🎵 '+short(nowSong,38)+(songDed&&songDed.title===nowSong?` · dedicată de ${short(songDed.u.nick,10)}${songDed.to?' → '+short(songDed.to.nick,10):''}`:'')+(songQ.length?`  ·  📋 ${songQ.length} în coadă`:'');fit(t2,lw-40,20,800);const w2=Math.min(lw,ctx.measureText(t2).width+40);rrect(cx-w2/2,sy-20,w2,40,20);ctx.fillStyle='rgba(20,10,40,.75)';ctx.fill();ctx.textAlign='center';txt(t2,cx,sy+1,'#e1bee7');
-    if(!dedic&&!spot){const t3='✍️ scrie ALTA = altă piesă · PUNE + artist = alegi tu';fit(t3,lw-40,22,900);const w3=Math.min(lw,ctx.measureText(t3).width+36);rrect(cx-w3/2,sy-66,w3,38,19);ctx.fillStyle='rgba(106,27,154,.92)';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff59d';ctx.stroke();txt(t3,cx,sy-46,'#fff59d')}}
+    if(!dedic&&!spot&&!duel&&!roulette&&!proposal&&!peacock){const cs=catalog.filter(Boolean),ex=cs.length?cs[(now/6000|0)%cs.length].title.split(/ [-–|] /)[0].slice(0,18):'',t3=ex&&(now/6000|0)%2?'✍️ ex: scrie PUNE '+ex+'  ·  ALTA = altă piesă':'✍️ scrie ALTA = altă piesă · PUNE + artist = alegi tu';fit(t3,lw-40,22,900);const w3=Math.min(lw,ctx.measureText(t3).width+36);rrect(cx-w3/2,sy-66,w3,38,19);ctx.fillStyle='rgba(106,27,154,.92)';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#fff59d';ctx.stroke();txt(t3,cx,sy-46,'#fff59d')}}
   const nT=TABLES.filter(t=>t.a).length,parts=[patron?'👑 '+short(patron.nick,11):'👑 patron: liber',vedeta?'⭐ '+short(vedeta.nick,11):'⭐ vedeta: —',cavaler?'🎩 '+short(cavaler.nick,11):'🎩 —','💞 '+nT];const pl=parts.join('    ');fit(pl,lw,24,900);txt(pl,cx,ly+lh+62,'#fff','rgba(0,0,0,.7)',5);
 }
-const HINTS=['🎵 scrie ALTA → schimbi piesa','🎵 scrie PUNE + artist → alegi melodia','🎁 cadou după PUNE → cântă acum + dedicație pe ecran','🎤 scrie „prezintă-mă” → 15 secunde în reflector','💚 scrie „single” → inimă verde lângă poză','⭐ vedeta serii = cea mai admirată persoană','🦚 @nume + cadou → îi faci curte în fața tuturor','🎵 scrie „dedic <melodia> pentru @nume” → intră pe tonomat','💍 cadou mare + @nume = cerere în căsătorie','🕵️ scrie „@nume secret” înainte de cadou = admirator secret','💔 scrie „divorț” ca să pleci de la masă 😂','💬 scrie în chat → iei loc la bar','🌹 scrie @nume înainte de un cadou → ajunge la persoana aceea','🛋️ masa VIP e a suporterilor serii','💌 scrie @nume · dacă îți răspunde cu @numele tău, stați la aceeași masă','☕ scrie „cafea”, „ceai” sau „vin”','🗺️ scrie orașul sau țara de unde ești','❤️ like-urile încălzesc cafeneaua','📸 scrie „cafenea” pentru poza serii']
+const HINTS=['🎵 scrie ALTA → schimbi piesa','🎵 scrie PUNE + artist → alegi melodia','🎁 cadou după PUNE → cântă acum + dedicație pe ecran','🎤 scrie „prezintă-mă” → 15 secunde în reflector','💚 scrie „single” → inimă verde lângă poză','⭐ vedeta serii = cea mai admirată persoană','🦚 @nume + cadou → îi faci curte în fața tuturor','🎵 scrie „dedic <melodia> pentru @nume” → intră pe tonomat','💍 cadou mare + @nume = cerere în căsătorie','🕵️ scrie „@nume secret” înainte de cadou = admirator secret','💔 scrie „divorț” ca să pleci de la masă 😂','💬 scrie în chat → iei loc la bar','🌹 scrie @nume înainte de un cadou → ajunge la persoana aceea','🛋️ masa VIP e a suporterilor serii','💌 scrie @nume · dacă îți răspunde cu @numele tău, stați la aceeași masă','☕ scrie „cafea”, „ceai” sau „vin”','🗺️ scrie orașul sau țara de unde ești','❤️ like-urile încălzesc cafeneaua']
 function drawPanel(now){
   ctx.textAlign='center';ctx.textBaseline='middle';const h=HINTS[hintI%HINTS.length];
-  if(!LAND){fit(h,980,26,900);const w=ctx.measureText(h).width+40;rrect(540-w/2,1222,w,44,22);ctx.fillStyle='rgba(8,12,40,.72)';ctx.fill();txt(h,540,1245,'#fff');return}
+  if(!LAND){if(freeDed&&performance.now()-freeDed.t0<(freeDed.ice?10000:7000))return;fit(h,980,26,900);const w=ctx.measureText(h).width+40;rrect(540-w/2,1222,w,44,22);ctx.fillStyle='rgba(8,12,40,.72)';ctx.fill();txt(h,540,1245,'#fff');return}
   const x=PX,w=PW;let y=330;fit(h,w,28,900);txt(h,x+w/2,y,'#e3f2fd','rgba(0,0,0,.7)',4);y+=60;
   ctx.textAlign='left';feedL.slice(-8).forEach((f,k)=>{fit(f.t,w-10,28,800);txt(f.t,x+6,y+k*44,f.col,'rgba(0,0,0,.7)',4)});
 }
@@ -448,7 +459,9 @@ function frame(now){
   if(spotQ.length)spotQ=spotQ.filter(o=>now-(o.seen||0)<300000);
   if(!roulette&&!proposal&&now>nextRoul){nextRoul=now+180000;startRoulette(now)}
   if(songQ.length&&now-songStart>60000&&now-lastSwitch>30000){lastSwitch=now;songStart=now;const r=songQ.shift();playSong(r,now);feed(`🎵 acum: ${short(r.song.title,30)} · cerută de ${r.u.nick}`,'#ce93d8')}
-  if(!spot&&!dedic&&spotQ.length&&now>nextSpot){spot={u:spotQ.shift(),t0:now};nextSpot=now+16000;sfx('big')}
+  {const h=new Date().getHours();if(h!==hourK){hourK=h;hourReset()}}
+  if(duel&&now>duel.end){const d=duel;duel=null;const c1=(d.b.adm||{})[d.a1.id]||0,c2=(d.b.adm||{})[d.a2.id]||0,w=c1>=c2?d.a1:d.a2;banner('🏆 '+short(w.nick,12).toUpperCase()+' CÂȘTIGĂ DUELUL',`pentru ${d.b.nick} · ❤️ ${Math.max(c1,c2)}`,'#ffd54f',true);sfx('win')}
+  if(!spot&&!dedic&&!duel&&!roulette&&!proposal&&!peacock&&spotQ.length&&now>nextSpot){spot={u:spotQ.shift(),t0:now};nextSpot=now+16000;sfx('big')}
   if(now>nextRoll){nextRoll=now+240000;banner('🗺️ DE UNDE NE URMĂRIȚI?','scrieți orașul sau țara în chat!','#90caf9',true)}
   ctx.save();if(now<shakeT)ctx.translate((Math.random()-.5)*10,(Math.random()-.5)*10);
   ctx.fillStyle=bg;ctx.fillRect(-20,-20,W+40,H+40);
@@ -465,11 +478,11 @@ function frame(now){
   requestAnimationFrame(frame)}
 
 /* ---------- Persist the evening across reloads (6h) ---------- */
-function saveState(){if(!LIVE)return;try{const us=[...users.values()].filter(u=>!String(u.id).startsWith('bot_')&&(u.coins||u.cc||u.lk)).slice(-300).map(u=>({id:u.id,nick:u.nick,pic:u.pic,col:u.col,coins:u.coins||0,gifts:u.gifts||0,cc:u.cc,lk:u.lk,rose:u.rose,star:u.star,place:u.place,recv:u.recv||0,given:u.given||0,adm:u.adm,single:u.single,taken:u.taken}));
-  localStorage.setItem('cf_state',JSON.stringify({t:Date.now(),night,magic,stage,goals:GOALS,patron:patron&&patron.id,first:firstIn&&firstIn.id,served,placeCnt,us}))}catch(e){}}
+function saveState(){if(!LIVE)return;try{const us=[...users.values()].filter(u=>!String(u.id).startsWith('bot_')&&(u.coins||u.cc||u.lk)).slice(-300).map(u=>({id:u.id,nick:u.nick,pic:u.pic,col:u.col,coins:u.coins||0,gifts:u.gifts||0,cc:u.cc,lk:u.lk,rose:u.rose,star:u.star,place:u.place,recv:u.recv||0,given:u.given||0,hc:u.hc||0,hr:u.hr||0,hg:u.hg||0,adm:u.adm,single:u.single,taken:u.taken}));
+  localStorage.setItem('cf_state',JSON.stringify({hk:new Date().getHours(),t:Date.now(),night,magic,stage,goals:GOALS,patron:patron&&patron.id,first:firstIn&&firstIn.id,served,placeCnt,us}))}catch(e){}}
 function loadState(){if(!LIVE)return;try{const s=JSON.parse(localStorage.getItem('cf_state')||'null');if(!s||Date.now()-s.t>6*3600e3)return;
   s.us.forEach(o=>{const u=U(o.id,o.nick);Object.assign(u,o)});const g=id=>id&&users.get(id);night=s.night;magic=s.magic;stage=s.stage;stageT=performance.now();s.goals.forEach((v,i)=>GOALS[i]=v);
-  patron=g(s.patron)||null;vedeta=topBy('recv');cavaler=topBy('given');firstIn=g(s.first)||null;s.served.forEach((v,i)=>served[i]=v);Object.assign(placeCnt,s.placeCnt||{})}catch(e){}}
+  if(s.hk!==new Date().getHours())users.forEach(o=>{o.hc=0;o.hr=0;o.hg=0});patron=topBy('hc');vedeta=topBy('hr');cavaler=topBy('hg');firstIn=g(s.first)||null;s.served.forEach((v,i)=>served[i]=v);Object.assign(placeCnt,s.placeCnt||{})}catch(e){}}
 setInterval(saveState,5000);
 /* ---------- Demo bots ---------- */
 const BOT_N=['andrei_uk','mariaa.torino','ionut.de','gabi_madrid','bianca.iasi','vlad.london','denisa.cluj','cosmin.paris','alexia','rares.b','ana.maria','florin.wien'];
