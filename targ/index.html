@@ -75,11 +75,11 @@ if(LIVE)document.body.classList.add('live');
 const WS=LAND?1080/1920:1,WX=LAND?40:0,PX=LAND?700:30,PW=LAND?1180:1020;
 
 /* ---------- Stages (co-op) ---------- */
-const GOALS=(Q.get('goals')||'400,1200,2500').split(',').map(Number);
+const GOALS=(Q.get('goals')||'300,800,1500').split(',').map(Number);
 const STG=[{e:'⛸️',n:'Patinoarul'},{e:'🎠',n:'Caruselul'},{e:'🛷',n:'Sania lui Moș Crăciun'},{e:'🎄',n:'Bradul se aprinde'}];
 let magic=0,stage=0,night=1,finaleUntil=0,stageT=0;
 const snowballs=[],users=new Map(),skaters=[],feedL=[],banners=[],pops=[],hearts_=[],lanterns=[],fw=[],flakes=[],globes=[],names=[];
-let firstSk=null,king=null,mos=null,sleighFly=null,shakeT=0,snowBoost=0,cabUntil=0,nextCab=performance.now()+120000,nextHint=performance.now()+12000,hintI=0;
+let takeover=null,firstSk=null,king=null,mos=null,sleighFly=null,shakeT=0,snowBoost=0,cabUntil=0,nextCab=performance.now()+120000,nextHint=performance.now()+12000,hintI=0;
 const giftCnt=[0,0,0,0,0,0];
 for(let i=0;i<160;i++)flakes.push({x:Math.random()*1080,y:100+Math.random()*1800,v:30+Math.random()*60,r:1.5+Math.random()*3});
 const COLS=['#e53935','#fdd835','#1e88e5','#43a047','#fb8c00','#ec407a','#8e24aa','#00bcd4','#ff7043','#7cb342'];
@@ -112,7 +112,9 @@ function onLike(id,nick,n){
   if(!u.orn&&u.lk>=100){u.orn=true;names.push(u);if(names.length>12)names.shift();pop(u,'🎄 numele tău e în brad!');feed(`🎄 ${u.nick} și-a agățat numele în brad`,'#81c784')}
   else if(now-u.likeT>8000){u.likeT=now;pop(u,'❤️ x'+n)}
 }
-function onSocial(id,nick,kind){const u=U(id,nick);skate(u);banner(kind==='follow'?'⭐ FOLLOW NOU!':'📣 SHARE!',`mulțumim, ${u.nick}!`,'#90caf9');sfx('big')}
+function onJoin(id,nick){const u=U(id,nick),now=performance.now();if(u.greeted&&now-u.greeted<600000)return;u.greeted=now;u.seen=now;const s=skate(u);s.leave=0;s.trick=now;s.say='👋 salut!';s.sayT=now;
+  if(users.size<400)feed(`👋 ${u.nick} a intrat la târg`,u.col)}
+function onSocial(id,nick,kind){const u=U(id,nick),s=skate(u);u.seen=performance.now();if(kind==='follow')u.star=1;banner(kind==='follow'?'⭐ FOLLOW NOU!':'📣 SHARE!',`mulțumim, ${u.nick}!`,'#90caf9');sfx('big')}
 
 /* ---------- Gifts: decor only (never add magic) ---------- */
 const GK=[
@@ -130,7 +132,10 @@ function onGift(id,nick,coins,gname,unit,gpic){
   unit=Math.max(1,Math.round(unit||coins||1));const ki=gkind(gname,unit),K=GK[ki];giftCnt[ki]++;
   if(gpic&&giftPic[K.k]!==gpic){giftPic[K.k]=gpic;try{localStorage.setItem('tg_gpics',JSON.stringify(giftPic))}catch(e){}}
   feed(`${K.e} ${u.nick} · ${K.l}`,u.col);const[x,y]=sxy(s);
-  u.gifts=(u.gifts||0)+1;
+  u.gifts=(u.gifts||0)+1;coins=Math.max(1,Math.round(coins||unit));u.coins=(u.coins||0)+coins;
+  u.combo=(now-(u.lastGift||0)<15000)?(u.combo||1)+1:1;u.lastGift=now;if(u.combo>=2)pop(u,'🔥 combo x'+u.combo);
+  if(coins>=1000||(u.combo>=5&&coins>=100)){takeover={u,t0:now,coins,label:K.l};sfx('win');shakeT=now+700;for(let k=0;k<10;k++)fw.push({x:120+Math.random()*840,y:220+Math.random()*320,t0:now+k*300,col:COLS[k%10]})}
+  else if(coins>=100){for(let k=0;k<4;k++)fw.push({x:150+Math.random()*780,y:240+Math.random()*300,t0:now+k*300,col:COLS[k%10]})}
   if(K.k==='felinar'){u.scarf='#d50000';if(lanterns.length<30)lanterns.push({u,x,y:y-30,t0:now,dx:(Math.random()-.5)*60});pop(u,'🧣 fular roșu + felinar')}
   else if(K.k==='carusel'){u.rideUntil=now+60000;sfx('big');banner('🎠 A URCAT ÎN CARUSEL',u.nick,u.col)}
   else if(K.k==='glob'){if(!globes.includes(u)){globes.push(u);if(globes.length>5)globes.shift()}sfx('big');banner('🎄 GLOB ÎN BRADUL TÂRGULUI',u.nick,u.col,true)}
@@ -254,6 +259,7 @@ function drawSkater(s,now,dt){if(s.leave)ctx.globalAlpha=Math.max(0,1-(now-s.lea
   ctx.fillStyle=s.u.col;rrect(-13,-6,26,24,8);ctx.fill();ctx.fillStyle=s.u.scarf||(s.u.cc>=15?'#ffd54f':shade(s.u.col,.5));ctx.fillRect(-14,-6,28,s.u.scarf||s.u.cc>=15?8:6);if(s.u.scarf||s.u.cc>=15){ctx.fillRect(6,-2,7,18)}
   avatar(s.u,0,-22,19,isK?'#ffd54f':(s.u.gifts?'#ffd54f':s.u.col));
   if(s.u.cc>=5&&!isK){ctx.fillStyle=s.u.scarf||'#c62828';ctx.beginPath();ctx.moveTo(-15,-34);ctx.lineTo(0,-58);ctx.lineTo(15,-34);ctx.fill();ctx.fillStyle='#fff';ctx.fillRect(-16,-37,32,6);ctx.beginPath();ctx.arc(0,-58,5,0,7);ctx.fill()}ctx.restore();
+  if(s.u.star){font(18,400);ctx.textAlign='center';ctx.fillText('⭐',x-24,y-jump-44)}
   if(isK){ctx.save();ctx.translate(x,y-jump-50);ctx.fillStyle='#ffd54f';ctx.beginPath();ctx.moveTo(-14,6);ctx.lineTo(-14,-6);ctx.lineTo(-7,0);ctx.lineTo(0,-10);ctx.lineTo(7,0);ctx.lineTo(14,-6);ctx.lineTo(14,6);ctx.closePath();ctx.fill();ctx.restore()}
   ctx.textAlign='center';ctx.textBaseline='middle';font(15,900);txt(short(s.u.nick,10),x,y+50,'#0d1b4a','rgba(255,255,255,.9)',4);if(s.leave){font(22,400);ctx.fillText('👋',x+26,y-40)}ctx.globalAlpha=1}
 function drawRink(now,dt){
@@ -315,6 +321,10 @@ function drawHeader(now){
   [0,...GOALS].forEach((v,i)=>{if(!i)return;const x=lx+lw*v/tot-(i===3?26:0),on=stage>=i;ctx.beginPath();ctx.arc(x,ly+lh/2,24,0,7);ctx.fillStyle=on?'#ffd54f':'#2a3366';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.stroke();font(24,400);ctx.globalAlpha=on?1:.6;ctx.fillText(STG[i].e,x,ly+lh/2+1);ctx.globalAlpha=1});
   const nx=STG[Math.min(stage+1,3)],t=stage>=3?'🎆 Bradul s-a aprins! Mulțumim!':`✨ ${magic} / ${GOALS[stage]} → ${nx.e} ${nx.n}`;fit(t,lw,26,900);txt(t,cx,ly+lh+26,'#ffe082','rgba(0,0,0,.75)',5);
   /* one line of featured people */
+  /* top-3 supporters strip (always visible) */
+  const sup=[...users.values()].filter(x=>x.coins>0).sort((a,b)=>b.coins-a.coins).slice(0,3);
+  if(sup.length){const sy=ly+lh+104,sw=Math.min(lw,60+sup.length*230);rrect(cx-sw/2,sy-28,sw,56,28);ctx.fillStyle='rgba(60,40,0,.78)';ctx.fill();ctx.strokeStyle='#ffd54f';ctx.lineWidth=3;ctx.stroke();
+    ctx.textAlign='left';font(22,900);txt('💛 Top',cx-sw/2+22,sy+1,'#ffd54f');sup.forEach((p,i)=>{const x=cx-sw/2+120+i*230;avatar(p,x,sy,20,'#ffd54f');font(21,900);txt(['🥇','🥈','🥉'][i]+' '+short(p.nick,9),x+28,sy+1,'#fff')});ctx.textAlign='center'}
   const parts=[king?'👑 '+short(king.nick,12):'👑 —',firstSk?'⛸️ '+short(firstSk.nick,12):'⛸️ —',mos?'🎅 '+short(mos.nick,12):'🎅 —'];const pl=parts.join('    ');fit(pl,lw,24,900);txt(pl,cx,ly+lh+62,'#fff','rgba(0,0,0,.7)',5);
 }
 const HINTS=['💞 scrie @nume ca să patinezi cu cineva','❄️ scrie „bulgăre @nume" și aruncă cu zăpadă','🎩 5 comentarii = căciulă · 15 = fular auriu','💬 scrie orice în chat → intri pe patinoar','❤️ like = ✨ · comentariu = 5 ✨ · deschidem târgul împreună','🎠 cei mai activi la like-uri urcă în carusel','🛷 cei mai activi zboară cu sania Moșului','🎄 100 like-uri = numele tău în brad','📸 scrie „targ" pentru poza serii'];
@@ -351,6 +361,10 @@ function frame(now){
   ctx.save();ctx.translate(WX,0);ctx.scale(WS,WS);if(LAND){rrect(0,0,1080,1920,40);ctx.clip()}drawWorld(now,dt);ctx.restore();
   drawHeader(now);drawPanel(now);ctx.restore();
   if(now>nextCab){nextCab=now+180000;cabUntil=now+12000}if(now<cabUntil)drawBoard(now);else drawBanner(now);
+  if(takeover){const q=(now-takeover.t0)/5000;if(q>1)takeover=null;else{const a=Math.min(1,q*6,(1-q)*6),T=takeover,cx=LAND?PX+PW/2:540,cy=LAND?540:700;ctx.save();ctx.globalAlpha=a;ctx.fillStyle='rgba(20,5,10,.7)';ctx.fillRect(0,0,W,H);
+    const rr=150+Math.sin(now/150)*8;ctx.save();ctx.translate(cx,cy-60);ctx.rotate(now/900);for(let k=0;k<16;k++){ctx.rotate(Math.PI/8);ctx.fillStyle=k%2?'rgba(255,213,79,.35)':'rgba(255,255,255,.15)';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-40,-520);ctx.lineTo(40,-520);ctx.fill()}ctx.restore();
+    ctx.shadowColor='#ffd54f';ctx.shadowBlur=60;avatar(T.u,cx,cy-60,rr,'#ffd54f');ctx.shadowBlur=0;ctx.textAlign='center';ctx.textBaseline='middle';
+    fit(T.u.nick,900,72,900);txt(T.u.nick,cx,cy+150,'#fff','#b71c1c',10);font(40,900);txt('✨ MULȚUMIM! ✨',cx,cy+225,'#ffd54f','rgba(0,0,0,.8)',8);ctx.restore()}}
   if(wsState!=='none'){const map={on:['🟢 CONECTAT','#1b5e20'],wait:['🟡 Aștept TikTok… '+Math.max(0,Math.ceil((retryAt-now)/1000))+'s','#6d5300'],bad:['🔴 Cheie greșită','#7f0000'],off:['🔴 Deconectat — reîncerc','#7f0000']};const [t,c]=map[wsState];font(22,800);const w=ctx.measureText(t).width+28,by=LAND?H-50:16;rrect(W-w-16,by,w,38,19);ctx.fillStyle=c;ctx.fill();ctx.textAlign='left';ctx.textBaseline='middle';txt(t,W-w-2,by+20,'#fff')}
   requestAnimationFrame(frame)}
 
@@ -359,7 +373,7 @@ const BOT_N=['andrei_iasi','mariaa.cj','ionut.tm','gabi_olt','bianca.ct','vlad.b
 const BOTS=BOT_N.map((n,i)=>({id:'bot_'+i,nick:n}));
 const pick=a=>a[(Math.random()*a.length)|0];
 function demoTick(){const b=pick(BOTS),r=Math.random();
-  if(r<.4){const u=users.get(b.id);if(u)u.lastC=0;onChat(b.id,b.nick,pick(['ce frumos!','colindăm 🎄','hai la patinoar','salut din Craiova','bulgăre @'+pick(BOT_N).slice(0,4),'@'+pick(BOT_N).slice(0,4)+' hai la patinaj']))}else if(r<.95)onLike(b.id,b.nick,5+(Math.random()*15|0));
+  if(r<.4){const u=users.get(b.id);if(u)u.lastC=0;onChat(b.id,b.nick,pick(['ce frumos!','colindăm 🎄','hai la patinoar','salut din Craiova','vin fiert 😍','mergem la carusel']))}else if(r<.95)onLike(b.id,b.nick,5+(Math.random()*15|0));
   else onGift(b.id,b.nick,1,pick(['Rose','Rose','Finger Heart','Doughnut','Hand Hearts','Confetti','Sunglasses']))}
 let demoT=null;const demoBox=document.getElementById('demo');
 function setDemo(on){demoBox.checked=on;clearInterval(demoT);demoT=on?setInterval(demoTick,350):null}
@@ -391,6 +405,7 @@ function tf(){
     else if(ev==='gift'){if(d.giftType===1&&!d.repeatEnd)return;const gp=d.giftPictureUrl||((d.gift||{}).image||{}).url_list?.[0]||((d.giftDetails||{}).giftImage||{}).giftPictureUrl||'';onGift(id,nick,(d.diamondCount||1)*(d.repeatCount||1),d.giftName,d.diamondCount||1,gp)}
     else if(ev==='like')onLike(id,nick,d.likeCount||1);
     else if(ev==='follow'||ev==='share')onSocial(id,nick,ev);
+    else if(ev==='member'||ev==='join')onJoin(id,nick);
   };
 }
 
