@@ -486,7 +486,11 @@ function drawBoard(now){
 
 /* ---------- Loop ---------- */
 let last=performance.now(),nextMosHint=performance.now()+90000;
-function frame(now){
+let lastErr='',errT=0;function safe(n,f){try{f()}catch(e){lastErr=n+': '+(e&&e.message||e);errT=performance.now();try{ctx.restore()}catch(_){}try{localStorage.setItem('cf_err',lastErr+' @'+new Date().toISOString())}catch(_){}}}
+function frame(now){try{frame0(now)}catch(e){lastErr='frame: '+(e&&e.message||e);errT=performance.now()}
+  if(lastErr&&performance.now()-errT<60000){ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.font='14px sans-serif';ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(0,140,cv.width,24);ctx.fillStyle='#ff8a80';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText('⚠ '+lastErr.slice(0,140),6,152);ctx.restore()}
+}
+function frame0(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;
   if(finaleUntil&&now>finaleUntil)newNight(now);
   if(now>nextHint){nextHint=now+7000;hintI++}
@@ -505,11 +509,11 @@ function frame(now){
   if(now>nextRoll){nextRoll=now+240000;banner('🗺️ DE UNDE NE URMĂRIȚI?','scrieți orașul sau țara în chat!','#90caf9',true)}
   ctx.save();if(now<shakeT)ctx.translate((Math.random()-.5)*10,(Math.random()-.5)*10);
   ctx.fillStyle=bg;ctx.fillRect(-20,-20,W+40,H+40);
-  ctx.save();ctx.translate(WX,0);ctx.scale(WS,WS);if(LAND){rrect(0,0,1080,1920,40);ctx.clip()}drawWorld(now,dt);ctx.restore();
-  drawHeader(now);drawPanel(now);ctx.restore();
+  ctx.save();ctx.translate(WX,0);ctx.scale(WS,WS);if(LAND){rrect(0,0,1080,1920,40);ctx.clip()}safe('world',()=>drawWorld(now,dt));ctx.restore();
+  safe('header',()=>drawHeader(now));safe('panel',()=>drawPanel(now));ctx.restore();
   {const lx=LAND?PX:40,lw=LAND?PW:1000,by=(LAND?70:178)+97,bx=lx+lw*Math.min(1,magic/GOALS[2]);for(let i=flyH.length-1;i>=0;i--){const h=flyH[i],q=(now-h.t0)/900;if(q<0)continue;if(q>1){flyH.splice(i,1);continue}
     const sx=WX+h.x*WS,sy=h.y*WS,e=q*q,x=sx+(bx-sx)*e,y=sy+(by-sy)*e-Math.sin(q*Math.PI)*80;ctx.globalAlpha=1-q*.4;font(30,900);ctx.textAlign='center';ctx.textBaseline='middle';txt('♥',x,y,h.col,'rgba(255,255,255,.8)',3);ctx.globalAlpha=1}}
-  if(now<cabUntil)drawBoard(now);else drawBanner(now);
+  safe('banner',()=>{if(now<cabUntil)drawBoard(now);else drawBanner(now)});
   if(takeover){const q=(now-takeover.t0)/5000;if(q>1)takeover=null;else{const a=Math.min(1,q*6,(1-q)*6),T=takeover,cx=LAND?PX+PW/2:540,cy=LAND?540:700;ctx.save();ctx.globalAlpha=a;ctx.fillStyle='rgba(20,5,10,.7)';ctx.fillRect(0,0,W,H);
     const rr=150+Math.sin(now/150)*8;ctx.save();ctx.translate(cx,cy-60);ctx.rotate(now/900);for(let k=0;k<16;k++){ctx.rotate(Math.PI/8);ctx.fillStyle=k%2?'rgba(255,213,79,.35)':'rgba(255,255,255,.15)';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-40,-520);ctx.lineTo(40,-520);ctx.fill()}ctx.restore();
     ctx.shadowColor='#ffd54f';ctx.shadowBlur=60;avatar(T.u,cx,cy-60,rr,'#ffd54f');ctx.shadowBlur=0;ctx.textAlign='center';ctx.textBaseline='middle';
