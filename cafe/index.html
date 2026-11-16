@@ -86,7 +86,8 @@ function feed(t,col){feedL.push({t,col});if(feedL.length>8)feedL.shift()}
 function banner(title,sub,col,big){if(banners.length>3)banners.splice(1,1);banners.push({title,sub,col,big,t0:0})}
 function short(n,k){n=n||'';return n.length>k?n.slice(0,k-1)+'…':n}
 /* safety: hide phone numbers, @handles, links, social-app names */
-function clean(t){return String(t||'').replace(/https?:\/\/\S+|www\.\S+/gi,'•••').replace(/(\+?\d[\d\s.-]{5,}\d)/g,'•••').replace(/@\S+/g,'').replace(/\b(insta(gram)?|snap(chat)?|whats ?app|telegram|ig|numarul|nr\.? ?tel)\b/gi,'•••').replace(/\s+/g,' ').trim()}
+function clean(t){return String(t||'').replace(/https?:\/\/\S+|www\.\S+/gi,'•••').replace(/(\+?\d[\d\s.-]{5,}\d)/g,'•••').replace(/@\S+/g,'').replace(/\b(insta(gram)?|snap(chat)?|whats ?app|telegram|ig|numarul|nr\.? ?tel)\b/gi,'•••').replace(BAD,'🙊').replace(/\s+/g,' ').trim()}
+const BAD=/\b(pul[aăeii]\w*|pizd\w*|muie\w*|fut\w*|futu\w*|c[aă]cat\w*|curv\w*|coai\w*|sug[ei]\w*|lab[aă]\w*|labagi\w*|bulang\w*|morm[aă]nt?ii|mor[tț]ii|m[aă]-?tii|dracu\w*|idiot\w*|prost\w*|bou|handicapat\w*|tigan\w*|țigan\w*|fuck\w*|shit|bitch\w*|dick|cock)\b/gi;
 
 /* ---------- Seats: bar stools for singles, tables for two ---------- */
 const STOOLS=[];for(let i=0;i<14;i++)STOOLS.push({x:95+i*68,y:1090,u:null});
@@ -121,6 +122,8 @@ function onChat(id,nick,text){
   if(/\b(masa noua|schimb masa|alta masa|ma mut)\b/.test(t)){if(u.table)leaveTable(u);else unseat(u);seat(u);pop(u,'🪑 masă nouă');if(u.soloT)freeDed={u,to:null,msg:'🪑 stă singur(ă) la masă · scrie @'+short(u.nick,14)+' ca să te așezi',t0:now}}
   if(/\bsunt (o )?(fata|femeie|domnisoara|doamna)\b|\bcaut (un )?(baiat|barbat)\b/.test(t)){if(!u.g)pop(u,'💗');u.g='f'}
   else if(/\bsunt (un )?(baiat|barbat|domn)\b|\bcaut (o )?(fata|femeie|domnisoara)\b/.test(t)){if(!u.g)pop(u,'💙');u.g='m'}
+  if(/hai (sa ne )?(cuplam|cuplăm)|cine (vine|sta|stă) (cu mine )?la mas|(vine|vino) cineva la mas|caut (pe cineva|partener|partenera)|hai la masa/.test(t))u.openCall=now;
+  {const mm2=/@([^\s@]+)/.exec(String(text||''));if(mm2&&yes(t)){const q2=norm(mm2[1]).replace(/[?!.,;:]+$/,'');const X=[...users.values()].find(o=>o!==u&&norm(o.nick).replace(/\s/g,'').startsWith(q2));if(X&&X.openCall&&now-X.openCall<120000&&now-(X.chatT||0)<120000&&!(X.table&&X.table===u.table)){X.openCall=0;pairUp(X,u,now)}}}
   if(yes(t)&&!(roulette&&(u===roulette.a||u===roulette.b))&&!(danceInv&&u===danceInv.b)&&!proposal){let inv=null;users.forEach(o=>{if(o!==u&&o.invite===u&&now-(o.inviteT||0)<120000&&now-(o.chatT||0)<120000&&(!inv||o.inviteT>inv.inviteT))inv=o});if(inv&&!(inv.table&&inv.table===u.table)){inv.invite=null;pairUp(inv,u,now)}}
   if(danceInv&&u===danceInv.b&&now-danceInv.t0<60000&&yes(t)){slowDance={a:danceInv.a,b:u,t0:now,dur:25000};danceInv=null;banner('💃 DANS LENT 🕺',`${slowDance.a.nick} & ${u.nick}`,'#f06292',true);sfx('win');feed(`💃 ${slowDance.a.nick} & ${u.nick} dansează`,'#f48fb1')}
   else if(/\bdans/.test(t)&&/@/.test(String(text||''))&&!slowDance){const tg2=/@([^\s@]+)/.exec(String(text||''));const to2=tg2?[...users.values()].find(o=>o!==u&&norm(o.nick).replace(/\s/g,'').startsWith(norm(tg2[1]).replace(/[?!.,;:]+$/,''))):null;if(to2){danceInv={a:u,b:to2,t0:now};freeDed={u,to:to2,msg:'💃 te invită la dans! scrie DA',t0:now};sfx('big')}}
@@ -445,7 +448,7 @@ function drawHeader(now){
   ctx.save();rrect(lx,ly,lw,lh,25);ctx.clip();const g=ctx.createLinearGradient(lx,0,lx+lw,0);g.addColorStop(0,'#f06292');g.addColorStop(.5,'#ffb74d');g.addColorStop(1,'#ffe082');ctx.fillStyle=g;ctx.fillRect(lx,ly,lw*p,lh);ctx.restore();
   const pu=Math.max(0,1-(now-barPulse)/500);ctx.save();ctx.shadowColor='#ff4f8b';ctx.shadowBlur=30*pu;ctx.lineWidth=3+3*pu;ctx.strokeStyle='rgba(255,224,130,.9)';rrect(lx,ly,lw,lh,25);ctx.stroke();ctx.restore();
   [0,...GOALS].forEach((v,i)=>{if(!i)return;const x=lx+lw*v/tot-(i===3?26:0),on=stage>=i;ctx.beginPath();ctx.arc(x,ly+lh/2,24,0,7);ctx.fillStyle=on?'#ffd54f':'#4a2a1c';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.stroke();font(24,400);ctx.globalAlpha=on?1:.6;ctx.fillText(STG[i].e,x,ly+lh/2+1);ctx.globalAlpha=1});
-  const nx=STG[Math.min(stage+1,3)],t=stage>=3?'🎆 Bradul s-a aprins! Mulțumim!':`✨ ${Math.round(magic)} / ${GOALS[stage]} → ${nx.e} ${nx.n}`;fit(t,lw,26,900);txt(t,cx,ly+lh+26,'#ffe082','rgba(0,0,0,.75)',5);
+  const nx=STG[Math.min(stage+1,3)],t=stage>=3?'💃 Dansul serii! Mulțumim tuturor! 🎉':`✨ ${Math.round(magic)} / ${GOALS[stage]} → ${nx.e} ${nx.n}`;fit(t,lw,26,900);txt(t,cx,ly+lh+26,'#ffe082','rgba(0,0,0,.75)',5);
   /* one line of featured people */
   /* top-3 supporters strip (always visible) */
   const sup=[...users.values()].filter(x=>x.coins>0).sort((a,b)=>b.coins-a.coins).slice(0,3);
@@ -492,6 +495,7 @@ function frame(now){try{frame0(now)}catch(e){lastErr='frame: '+(e&&e.message||e)
 }
 function frame0(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;
+  if(stage>=3&&!finaleUntil)finaleUntil=now+20000;
   if(finaleUntil&&now>finaleUntil)newNight(now);
   if(now>nextHint){nextHint=now+7000;hintI++}
   if(!patron&&now>nextMosHint){nextMosHint=now+180000;banner('👑 Patronul cafenelei: încă liber','tradiția casei: patronul e suporterul #1 al serii','#ffb74d')}
