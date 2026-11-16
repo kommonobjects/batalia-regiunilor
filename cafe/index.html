@@ -110,7 +110,7 @@ function findPlace(t){for(const [re,f,n] of PLACES)if(re.test(t))return[f,n];ret
 const ITEMS=[[/\b(cafea|coffee|espresso)\b/,'☕',0],[/\b(ceai|tea)\b/,'🍵',1],[/\bvin\b/,'🍷',2],[/\b(cocktail|cocteil|tuica|palinca|bere)\b/,'🍸',3]];
 const QUESTIONS=['Ce ți-e cel mai dor de acasă?','Care e cel mai frumos loc unde ai fost?','Ce mâncare ai comanda acum?','Ce melodie îți aduce aminte de cineva?','Ce te face să zâmbești azi?','Cafea sau ceai? Și de ce?','Ce ai face într-o zi liberă perfectă?','Ce sfat i-ai da celui de acum 5 ani?'];
 function onChat(id,nick,text){
-  const u=U(id,nick),t=norm(text),now=performance.now();entrance(u,now);u.seen=now;seat(u);
+  let u=U(id,nick),t=norm(text),now=performance.now();entrance(u,now);u.seen=now;seat(u);
   const cl=clean(text);u.chatT=now;const isCmd=/^\s*(@|pune\b|alta\b|next|skip|da\b|nu\b|dedic|melod|piesa|cantec|prezint|reflector|single|singur|divort|plec|secret|schimba)/.test(t);if(cl){if(!isCmd){u.say=short(cl,26);u.sayT=now}u.lastMsg=cl}
   const p=findPlace(t);if(p&&!u.place){u.place=p;placeCnt[p[1]]=(placeCnt[p[1]]||0)+1;pop(u,p[0]+' '+p[1])}
   for(const [re,e,k] of ITEMS)if(re.test(t)){u.item=e;u.itemT=now;served[k]++;break}
@@ -130,6 +130,7 @@ function onChat(id,nick,text){
   if(/\b(plec|parasesc|ma duc la somn|noapte buna|somn usor|va pup|pa pa)\b/.test(t)&&!/\?/.test(t)){if(u.table)leaveTable(u);unseat(u);u.seen=0;spotQ=spotQ.filter(o=>o!==u);feed(`👋 ${u.nick} a plecat · noapte bună!`,'#b0bec5');banner('👋 NOAPTE BUNĂ, '+short(u.nick,14).toUpperCase(),'te așteptăm mâine la o cafea ☕','#90a4ae');return}
   if(/^\s*(alta|alt[ae]? (piesa|melodie|cantec)|next|skip|schimba( piesa| melodia| muzica)?|urmatoarea)\s*[!.]*\s*$/.test(t)){skipSong(u,now);return}
   if(/(cum|vreau|se poate|putem).{0,20}(schimb|alta|pun|alegem).{0,15}(pies|melod|muzic|cantec)|(schimb|alta).{0,6}(pies|melod|muzic)/.test(t)&&!/^\s*(pune|piesa|melodi)/.test(t)){freeDed={u,to:null,msg:'🎵 scrie ALTA = piesă nouă · scrie PUNE + artist = alegi tu',t0:now};pop(u,'🎵 scrie: ALTA')}
+  if(/^\s*alta\s*[=:,-]?\s*\S{3,}/.test(t)&&!/^\s*alta\s+(piesa|melodie|cantec)\s*$/.test(t)){t=t.replace(/^\s*alta\s*[=:,-]?\s*/,'pune ');text=String(text||'').replace(/^\s*alta\s*[=:,-]?\s*/i,'pune ')}
   {const mm=/^\s*(dedic\w*|melodi\w*|piesa|pune|cantec\w*)\b(.*)/.exec(t);if(mm){const tgt=/@([^\s@]+)/.exec(String(text||''));const to=tgt?[...users.values()].find(o=>o!==u&&norm(o.nick).replace(/\s/g,'').startsWith(norm(tgt[1]))):null;
     const words=mm[2].replace(/@\S+/g,'').replace(/\b(pentru|pt|lui|la|de|si|cu|melodia|piesa)\b/g,' ').split(/[^a-z0-9]+/).filter(Boolean);const song=findSong(words);
     const msg=clean(String(text||'').replace(/^\s*\S+/,''))||'❤️';
